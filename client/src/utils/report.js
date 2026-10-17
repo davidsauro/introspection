@@ -53,4 +53,16 @@ export function buildReport(catalog, rawDays, dates) {
   };
 }
 
-export const formatNumber = (n) => (n === null ? '–' : Number.isInteger(n) ? String(n) : n.toFixed(1));
+// What a single day shows: active items, plus archived ones that have data on that day.
+export function visibleForDay(catalog, day) {
+  const ratings = day?.ratings ?? {};
+  const meds = day?.medications ?? {};
+  const tracker = (t) => !t.archived || ratings[t.id];
+  return {
+    emotions: catalog.emotions.filter(tracker),
+    urges: catalog.urges.filter(tracker),
+    medications: catalog.medications.filter((m) => !m.archived || meds[m.id] !== undefined),
+  };
+}
+
+export const formatNumber =(n) => (n === null ? '–' : Number.isInteger(n) ? String(n) : n.toFixed(1));

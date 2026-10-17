@@ -2,48 +2,35 @@
 import { formatWeekday } from '../utils/dates.js';
 
 // Tracker × date heatmap with a medication row per medication.
-const props = defineProps({
+defineProps({
   report: { type: Object, required: true }, // from buildReport()
-  dates: { type: Array, default: null }, // subset of report.dates to show (print splits long ranges)
-  print: { type: Boolean, default: false },
 });
 
-const cols = () => props.dates ?? props.report.dates;
-
-function cellStyle(point) {
+function cellStyle(point, kind) {
   if (point.value === null) return {};
   const ratio = point.scaleMax ? point.value / point.scaleMax : 0;
   const pct = point.value === 0 ? 8 : Math.round(18 + ratio * 72);
-  const tone = point.kind === 'urge' ? 'var(--urge)' : 'var(--accent)';
+  const tone = kind === 'urge' ? 'var(--urge)' : 'var(--accent)';
   return {
     background: `color-mix(in srgb, ${tone} ${pct}%, var(--surface))`,
-    color: pct > 55 ? (point.kind === 'urge' ? 'var(--urge-contrast)' : 'var(--accent-contrast)') : 'var(--text)',
+    color: pct > 55 ? (kind === 'urge' ? 'var(--urge-contrast)' : 'var(--accent-contrast)') : 'var(--text)',
   };
-}
-
-function point(stat, date) {
-  const i = props.report.dates.indexOf(date);
-  return { ...stat.points[i], kind: stat.tracker.kind };
-}
-
-function medValue(stat, date) {
-  return stat.taken[props.report.dates.indexOf(date)];
 }
 
 const dayNum = (d) => Number(d.slice(8));
 </script>
 
 <template>
-  <div class="grid-scroll" :class="{ print }">
+  <div class="grid-scroll">
     <table class="heat">
       <thead>
         <tr>
           <th class="name" scope="col"><span class="sr-only">Item</span></th>
-          <th v-for="d in cols()" :key="d" scope="col" class="date">
-            <component :is="print ? 'span' : 'RouterLink'" :to="print ? undefined : `/day/${d}`" class="date-link">
+          <th v-for="d in report.dates" :key="d" scope="col" class="date">
+            <RouterLink :to="`/day/${d}`" class="date-link">
               <span class="wd">{{ formatWeekday(d) }}</span>
               <span class="dn">{{ dayNum(d) }}</span>
-            </component>
+            </RouterLink>
           </th>
         </tr>
       </thead>
@@ -53,25 +40,25 @@ const dayNum = (d) => Number(d.slice(8));
           { title: 'Urges', stats: report.urges },
         ]" :key="section.title">
           <tr v-if="section.stats.length" class="section">
-            <th :colspan="cols().length + 1" scope="colgroup">{{ section.title }}</th>
+            <th :colspan="report.dates.length + 1" scope="colgroup">{{ section.title }}</th>
           </tr>
           <tr v-for="s in section.stats" :key="s.tracker.id">
             <th class="name" scope="row">{{ s.tracker.name }}</th>
-            <td v-for="d in cols()" :key="d" :style="cellStyle(point(s, d))" class="cell">
-              <template v-if="point(s, d).value !== null">{{ point(s, d).value }}</template>
-              <span v-if="point(s, d).actedOn" class="acted" title="Acted on" aria-label="acted on" />
+            <td v-for="p in s.points" :key="p.date" :style="cellStyle(p, s.tracker.kind)" class="cell">
+              <template v-if="p.value !== null">{{ p.value }}</template>
+              <span v-if="p.actedOn" class="acted" title="Acted on" aria-label="acted on" />
             </td>
           </tr>
         </template>
 
         <template v-if="report.medications.length">
           <tr class="section">
-            <th :colspan="cols().length + 1" scope="colgroup">Medications</th>
+            <th :colspan="report.dates.length + 1" scope="colgroup">Medications</th>
           </tr>
           <tr v-for="m in report.medications" :key="m.medication.id">
             <th class="name" scope="row">{{ m.medication.name }}</th>
-            <td v-for="d in cols()" :key="d" class="cell med" :class="{ yes: medValue(m, d) === true, no: medValue(m, d) === false }">
-              {{ medValue(m, d) === true ? '✓' : medValue(m, d) === false ? '✗' : '' }}
+            <td v-for="(taken, i) in m.taken" :key="i" class="cell med" :class="{ yes: taken === true, no: taken === false }">
+              {{ taken === true ? '✓' : taken === false ? '✗' : '' }}
             </td>
           </tr>
         </template>
@@ -195,25 +182,5 @@ td {
   .cell {
     min-width: 26px;
   }
-}
-
-/* In the PDF the grid fits the page width rather than scrolling. */
-.print {
-  overflow: visible;
-}
-.print .heat {
-  table-layout: fixed;
-  width: 100%;
-  font-size: 0.72rem;
-}
-.print .name {
-  width: 120px;
-}
-.print .date,
-.print .cell {
-  min-width: 0;
-}
-.print .cell {
-  height: 26px;
 }
 </style>

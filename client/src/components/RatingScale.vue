@@ -6,7 +6,6 @@ const props = defineProps({
   max: { type: Number, required: true },
   label: { type: String, required: true },
   tone: { type: String, default: 'accent' }, // 'accent' | 'urge'
-  readonly: { type: Boolean, default: false },
 });
 const emit = defineEmits(['update:modelValue']);
 
@@ -17,13 +16,11 @@ const buttons = ref([]);
 const tabStop = computed(() => props.modelValue ?? 0);
 
 function select(v) {
-  if (props.readonly) return;
   // Tapping the current value again clears it.
   emit('update:modelValue', v === props.modelValue ? null : v);
 }
 
 function onKey(e, v) {
-  if (props.readonly) return;
   let next = null;
   if (e.key === 'ArrowRight' || e.key === 'ArrowUp') next = Math.min(props.max, v + 1);
   else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') next = Math.max(0, v - 1);
@@ -45,10 +42,9 @@ function onKey(e, v) {
   <div class="scale-wrap">
     <div
       class="scale"
-      :class="[`tone-${tone}`, { readonly, split: max > 5 }]"
+      :class="[`tone-${tone}`, { split: max > 5 }]"
       role="radiogroup"
       :aria-label="label"
-      :aria-readonly="readonly || undefined"
       :style="{ '--n': max + 1, '--half': Math.ceil((max + 1) / 2) }"
     >
       <button
@@ -59,7 +55,7 @@ function onKey(e, v) {
         role="radio"
         :aria-checked="v === modelValue"
         :aria-label="`${v} of ${max}`"
-        :tabindex="readonly ? -1 : v === tabStop ? 0 : -1"
+        :tabindex="v === tabStop ? 0 : -1"
         :class="{ selected: v === modelValue, below: modelValue !== null && v < modelValue }"
         @click="select(v)"
         @keydown="onKey($event, v)"
@@ -120,12 +116,8 @@ button.selected {
   color: var(--cc);
 }
 
-.readonly button {
-  cursor: default;
-}
-
 @media (hover: hover) {
-  .scale:not(.readonly) button:not(.selected):hover {
+  .scale button:not(.selected):hover {
     border-color: var(--c);
   }
 }

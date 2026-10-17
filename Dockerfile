@@ -15,15 +15,14 @@ RUN npm ci --omit=dev
 
 # --- Runtime ---
 FROM node:22-alpine
-# Chromium renders the PDF exports; tini reaps its child processes; su-exec drops root after
-# the entrypoint fixes data-folder ownership. Liberation Sans stands in for Arial/Helvetica.
-RUN apk add --no-cache chromium nss freetype harfbuzz font-liberation font-noto-emoji tini su-exec
+# tini forwards signals for a clean shutdown; su-exec drops root after the entrypoint
+# fixes data-folder ownership. (PDFs are generated in the browser, not here.)
+RUN apk add --no-cache tini su-exec
 
 ENV NODE_ENV=production \
     PORT=3000 \
     DB_PATH=/data/diary.db \
-    PUBLIC_DIR=/app/public \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+    PUBLIC_DIR=/app/public
 
 WORKDIR /app
 COPY --from=server-deps /app/node_modules ./node_modules

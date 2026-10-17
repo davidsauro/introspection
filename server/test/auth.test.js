@@ -9,7 +9,7 @@ after(() => srv.close());
 test('fresh install reports setup required and protects the API', async () => {
   const c = srv.client();
   assert.deepEqual((await c.get('/api/auth/status')).data, { setupRequired: true, authenticated: false });
-  for (const url of ['/api/trackers', '/api/medications', '/api/days/2026-01-01', '/api/export/pdf?from=2026-01-01']) {
+  for (const url of ['/api/trackers', '/api/medications', '/api/days/2026-01-01']) {
     assert.equal((await c.get(url)).status, 401, url);
   }
 });

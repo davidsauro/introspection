@@ -12,7 +12,6 @@ const router = createRouter({
     { path: '/export', name: 'export', component: () => import('./views/ExportView.vue') },
     { path: '/settings', name: 'settings', component: () => import('./views/SettingsView.vue') },
     { path: '/login', name: 'login', component: () => import('./views/LoginView.vue'), meta: { public: true, bare: true } },
-    { path: '/print', name: 'print', component: () => import('./views/PrintReportView.vue'), meta: { bare: true } },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 });
@@ -37,9 +36,7 @@ setUnauthorizedHandler(() => {
   const auth = useAuthStore();
   auth.authenticated = false;
   const current = router.currentRoute.value;
-  if (current.name === 'print') {
-    window.__REPORT_ERROR__ = 'Not logged in';
-  } else if (!current.meta.public) {
+  if (!current.meta.public) {
     router.replace({ name: 'login', query: { next: current.fullPath } });
   }
 });

@@ -7,11 +7,11 @@ A private, self-hosted daily diary card for one person. It's modelled on the dai
 - mark each **medication** as taken (Yes/No)
 - write free-text **notes**
 
-The **History** screen shows a heatmap and trend charts. **Export** creates a PDF for a therapist. A single day exports as it looks in the app. A range of days exports as a summary with charts, followed by every day.
+The **History** screen shows a heatmap and trend charts. **Export** creates a PDF for a therapist with the same data as the app. A single day is one page. A range of days is a summary with charts, followed by a page per day. The PDF is generated in the browser on her device, so the server doesn't need to do anything for it.
 
 It works on iPhone, iPad and Mac. On iPhone or iPad, use Safari → Share → *Add to Home Screen* to open it like an app.
 
-Stack: Vue 3 + Vite, Node.js (Express 5), SQLite (better-sqlite3), and headless Chromium for the PDFs, all in one Docker container.
+Stack: Vue 3 + Vite, Node.js (Express 5) and SQLite (better-sqlite3) in one small Docker container. PDFs are made in the browser with pdfmake.
 
 ## Run it on the home server
 
@@ -19,7 +19,7 @@ Stack: Vue 3 + Vite, Node.js (Express 5), SQLite (better-sqlite3), and headless 
 docker compose up -d --build
 ```
 
-The first build takes a few minutes, and the image is about 1.5 GB, mostly Chromium for the PDFs. The container creates `./data` if it's missing and fixes its ownership, then runs the app as an unprivileged user.
+The first build takes a minute or two, and the image is about 290 MB. The container creates `./data` if it's missing and fixes its ownership, then runs the app as an unprivileged user.
 
 The app listens on port **3000**. Point your reverse proxy (which handles HTTPS) at `http://<server>:3000`.
 
@@ -31,8 +31,6 @@ The first visit asks you to choose a password. Settings comes with a starter lis
 |---|---|---|
 | `COOKIE_SECURE` | `true` | Login cookie is only sent over HTTPS. Set to `false` only if you open the app over plain HTTP. |
 | `TZ` | – | Server time zone (log timestamps). Diary dates always come from the device's own date. |
-| `PDF_FORMAT` | `Letter` | `Letter` or `A4`. |
-| `REPORT_TITLE` | `Diary Card` | Text in the PDF page header. |
 | `TRUST_PROXY` | private networks | Express `trust proxy` setting, if your proxy isn't on a private network. |
 
 ### Backups
@@ -62,23 +60,11 @@ cd server && npm install && npm run dev          # API on :3000
 cd client && npm install && npm run dev          # Vite on :5173, proxies /api to :3000
 ```
 
-PDF export in development needs a local Chrome/Chromium, and the server must load the print page from Vite:
-
-```sh
-PUPPETEER_EXECUTABLE_PATH=/path/to/chrome PRINT_BASE_URL=http://localhost:5173 npm run dev
-```
-
 ### Tests
 
 ```sh
 cd server && npm test     # API tests (node:test), each file against a fresh temporary database
-cd client && npm test     # unit tests (Vitest): dates, report building, autosave store
-```
-
-The server suite also renders real PDFs when Chromium and a built client are available:
-
-```sh
-(cd client && npm run build) && cd server && PUPPETEER_EXECUTABLE_PATH=/path/to/chrome npm test
+cd client && npm test     # unit tests (Vitest): dates, reports, autosave, and real PDF generation
 ```
 
 ## Layout
@@ -88,7 +74,8 @@ server/src/app.js             Express app, static hosting + SPA fallback
 server/src/index.js           starts the server, graceful shutdown
 server/src/db.js              SQLite connection, migrations (PRAGMA user_version), seed data
 server/src/auth.js            single-password login, SQLite-backed sessions
-server/src/routes/            trackers, medications, days, export (PDF via puppeteer-core)
-client/src/views/             Day, History, Export, Settings, Login, PrintReport (PDF page)
-client/src/components/        DaySheet (the day layout, shared by the app and the PDF), charts, grid
+server/src/routes/            trackers, medications, days
+client/src/views/             Day, History, Export, Settings, Login
+client/src/components/        DaySheet (the day screen), charts, history grid
+client/src/pdf/               PDF layout (document.js), chart images, generation (pdfmake, lazy-loaded)
 ```

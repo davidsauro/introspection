@@ -5,16 +5,15 @@ import { formatNumber } from '../utils/report.js';
 
 defineProps({
   report: { type: Object, required: true },
-  print: { type: Boolean, default: false },
 });
 </script>
 
 <template>
-  <div class="summary" :class="{ print }">
+  <div class="summary">
     <section v-if="report.emotions.length">
       <h2 class="section-title">Emotions</h2>
       <div class="charts">
-        <TrendChart v-for="s in report.emotions" :key="s.tracker.id" :stat="s" :print="print" />
+        <TrendChart v-for="s in report.emotions" :key="s.tracker.id" :stat="s" />
       </div>
     </section>
 
@@ -24,7 +23,7 @@ defineProps({
         <span class="legend muted small"><span class="diamond" /> acted on</span>
       </h2>
       <div class="charts">
-        <TrendChart v-for="s in report.urges" :key="s.tracker.id" :stat="s" :print="print" />
+        <TrendChart v-for="s in report.urges" :key="s.tracker.id" :stat="s" />
       </div>
 
       <div class="card table-card">
@@ -53,7 +52,7 @@ defineProps({
 
     <section v-if="report.medications.length">
       <h2 class="section-title">Medications</h2>
-      <MedicationChart :stats="report.medications" :print="print" />
+      <MedicationChart :stats="report.medications" />
     </section>
   </div>
 </template>
@@ -125,21 +124,5 @@ section {
 
 .stats tbody tr + tr {
   border-top: 1px solid var(--border);
-}
-
-/* In the PDF: two charts per row. Flexbox rather than grid, because Chrome can overlap
-   grid items that are split across a page break. */
-.print .charts {
-  display: flex;
-  flex-wrap: wrap;
-}
-.print .charts > * {
-  flex: 0 0 calc(50% - 6px);
-}
-.print section {
-  display: block;
-}
-.print section > * + * {
-  margin-top: 12px;
 }
 </style>

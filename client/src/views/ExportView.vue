@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch, onBeforeUnmount } from 'vue';
 import { useRoute } from 'vue-router';
-import { api } from '../api.js';
+import { generatePdf } from '../pdf/generate.js';
 import { addDays, daysBetween, formatRange, isValidDate, today } from '../utils/dates.js';
 import AppIcon from '../components/AppIcon.vue';
 
@@ -58,12 +58,11 @@ async function generate() {
   error.value = '';
   clearFile();
   try {
-    const blob = await api.get(`/export/pdf?from=${from.value}&to=${to.value}`);
-    const name = from.value === to.value ? `diary-${from.value}.pdf` : `diary-${from.value}_to_${to.value}.pdf`;
-    file.value = new File([blob], name, { type: 'application/pdf' });
+    file.value = await generatePdf(from.value, to.value);
     fileUrl.value = URL.createObjectURL(file.value);
   } catch (e) {
-    error.value = e.message;
+    console.error(e);
+    error.value = `Couldn't create the PDF: ${e.message}`;
   } finally {
     busy.value = false;
   }
@@ -84,8 +83,8 @@ async function share() {
       <h1>Export PDF</h1>
     </header>
     <p class="muted intro">
-      Create a PDF to share with your therapist. A single day looks just like the day screen. A longer range starts with
-      a summary and charts, followed by every day.
+      Create a PDF to share with your therapist. It shows the same ratings, medications and notes as the day screen.
+      A longer range starts with a summary and charts, followed by every day. The PDF is made on this device.
     </p>
 
     <div class="card stack panel">

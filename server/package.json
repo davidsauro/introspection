@@ -16,7 +16,6 @@
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^13.0.3",
     "express": "^5.3.0",
-    "express-session": "^1.19.0",
-    "puppeteer-core": "^25.14.0"
+    "express-session": "^1.19.0"
   }
 }

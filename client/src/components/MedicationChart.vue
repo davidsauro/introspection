@@ -6,7 +6,6 @@ import { cssVar } from '../utils/charts.js';
 // Horizontal bars: % of recorded days each medication was taken.
 const props = defineProps({
   stats: { type: Array, required: true }, // buildReport().medications
-  print: { type: Boolean, default: false },
 });
 
 const data = computed(() => ({
@@ -25,12 +24,10 @@ const options = computed(() => ({
   indexAxis: 'y',
   responsive: true,
   maintainAspectRatio: false,
-  animation: props.print ? false : { duration: 250 },
-  devicePixelRatio: props.print ? 3 : undefined,
+  animation: { duration: 250 },
   plugins: {
     legend: { display: false },
     tooltip: {
-      enabled: !props.print,
       callbacks: {
         label: (ctx) => {
           const s = props.stats[ctx.dataIndex];

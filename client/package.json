@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "chart.js": "^4.5.1",
+    "pdfmake": "^0.3.11",
     "pinia": "^4.1.0",
     "vue": "^3.5.44",
     "vue-chartjs": "^5.3.4",

@@ -6,7 +6,6 @@ import YesNo from './YesNo.vue';
 const props = defineProps({
   tracker: { type: Object, required: true },
   rating: { type: Object, default: null }, // { value, scaleMax, actedOn }
-  readonly: { type: Boolean, default: false },
 });
 defineEmits(['rate', 'acted']);
 
@@ -22,7 +21,6 @@ const showActed = computed(() => props.tracker.trackActed || props.rating?.acted
       <h3>{{ tracker.name }}</h3>
       <span class="value muted small">
         <template v-if="rating">{{ rating.value }} / {{ max }}</template>
-        <template v-else-if="readonly">Not rated</template>
       </span>
     </div>
     <RatingScale
@@ -30,7 +28,6 @@ const showActed = computed(() => props.tracker.trackActed || props.rating?.acted
       :max="max"
       :tone="tone"
       :label="`${tracker.name} intensity`"
-      :readonly="readonly"
       @update:model-value="$emit('rate', $event)"
     />
     <div v-if="showActed" class="acted">
@@ -38,8 +35,7 @@ const showActed = computed(() => props.tracker.trackActed || props.rating?.acted
       <YesNo
         :model-value="rating?.actedOn ?? null"
         :label="`Acted on ${tracker.name}`"
-        :disabled="!readonly && !rating"
-        :readonly="readonly"
+        :disabled="!rating"
         @update:model-value="$emit('acted', $event)"
       />
     </div>

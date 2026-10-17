@@ -1,26 +1,19 @@
 <script setup>
 import { computed, ref, watch, nextTick, onMounted } from 'vue';
 import { useCatalogStore } from '../stores/catalog.js';
+import { visibleForDay } from '../utils/report.js';
 import TrackerCard from './TrackerCard.vue';
 import MedicationList from './MedicationList.vue';
 
-// One day laid out as the diary card. Used editable on the Day screen and
-// read-only in the PDF report, so the export looks just like the app.
+// One day laid out as the diary card on the Day screen. The PDF (src/pdf/document.js)
+// shows the same items via visibleForDay().
 const props = defineProps({
   day: { type: Object, required: true }, // normalized day (see stores/day.js)
-  readonly: { type: Boolean, default: false },
 });
 const emit = defineEmits(['rate', 'acted', 'medication', 'notes']);
 
 const catalog = useCatalogStore();
-
-// Active items, plus archived ones that have data on this day.
-const visibleTrackers = (list) => list.filter((t) => !t.archived || props.day.ratings[t.id]);
-const emotions = computed(() => visibleTrackers(catalog.emotions));
-const urges = computed(() => visibleTrackers(catalog.urges));
-const medications = computed(() =>
-  catalog.medications.filter((m) => !m.archived || props.day.medications[m.id] !== undefined)
-);
+const visible = computed(() => visibleForDay(catalog, props.day));
 
 const notesEl = ref(null);
 function autoGrow() {
@@ -35,18 +28,17 @@ onMounted(autoGrow);
 
 <template>
   <div class="sheet-wrap">
-    <div class="sheet" :class="{ readonly }">
+    <div class="sheet">
       <div class="pane">
         <section>
           <h2 class="section-title">Emotions</h2>
-          <p v-if="!emotions.length" class="muted small empty">No emotions set up. Add them in Settings.</p>
+          <p v-if="!visible.emotions.length" class="muted small empty">No emotions set up. Add them in Settings.</p>
           <div class="grid">
             <TrackerCard
-              v-for="t in emotions"
+              v-for="t in visible.emotions"
               :key="t.id"
               :tracker="t"
               :rating="day.ratings[t.id]"
-              :readonly="readonly"
               @rate="emit('rate', t, $event)"
             />
           </div>
@@ -54,14 +46,13 @@ onMounted(autoGrow);
 
         <section>
           <h2 class="section-title">Urges</h2>
-          <p v-if="!urges.length" class="muted small empty">No urges set up. Add them in Settings.</p>
+          <p v-if="!visible.urges.length" class="muted small empty">No urges set up. Add them in Settings.</p>
           <div class="grid">
             <TrackerCard
-              v-for="t in urges"
+              v-for="t in visible.urges"
               :key="t.id"
               :tracker="t"
               :rating="day.ratings[t.id]"
-              :readonly="readonly"
               @rate="emit('rate', t, $event)"
               @acted="emit('acted', t, $event)"
             />
@@ -73,21 +64,15 @@ onMounted(autoGrow);
         <section>
           <h2 class="section-title">Medications</h2>
           <MedicationList
-            :medications="medications"
+            :medications="visible.medications"
             :values="day.medications"
-            :readonly="readonly"
             @set="(m, v) => emit('medication', m, v)"
           />
         </section>
 
         <section class="notes">
           <h2 class="section-title"><label for="day-notes">Notes</label></h2>
-          <div v-if="readonly" class="card notes-text">
-            <template v-if="day.notes?.trim()">{{ day.notes }}</template>
-            <span v-else class="muted">No notes.</span>
-          </div>
           <textarea
-            v-else
             id="day-notes"
             ref="notesEl"
             class="card"
@@ -134,12 +119,6 @@ onMounted(autoGrow);
   min-height: 140px;
   padding: 14px 16px;
   overflow: hidden;
-}
-
-.notes-text {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  min-height: 60px;
 }
 
 /* Wide screens (MacBook): ratings on the left, medications and notes alongside. */
