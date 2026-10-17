@@ -92,6 +92,7 @@ onBeforeRouteLeave(() => store.flush());
       @acted="store.setActed"
       @medication="store.setMedication"
       @notes="store.setNotes"
+      @tracker-note="store.setTrackerNote"
     />
   </div>
 </template>

@@ -75,6 +75,16 @@ const migrations = [
     expires INTEGER NOT NULL
   );
   `,
+  // v2: a note per emotion/urge per day. Separate from ratings so a note can exist without a
+  // rating, and clearing a rating keeps its note.
+  `
+  CREATE TABLE tracker_notes (
+    date TEXT NOT NULL,
+    tracker_id INTEGER NOT NULL REFERENCES trackers(id),
+    note TEXT NOT NULL,
+    PRIMARY KEY (date, tracker_id)
+  );
+  `,
 ];
 
 function migrate() {

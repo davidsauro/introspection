@@ -1,7 +1,8 @@
 <script setup>
-import { computed, ref, watch, nextTick, onMounted } from 'vue';
+import { computed } from 'vue';
 import { useCatalogStore } from '../stores/catalog.js';
 import { visibleForDay } from '../utils/report.js';
+import { vAutogrow } from '../utils/autogrow.js';
 import TrackerCard from './TrackerCard.vue';
 import MedicationList from './MedicationList.vue';
 
@@ -10,20 +11,10 @@ import MedicationList from './MedicationList.vue';
 const props = defineProps({
   day: { type: Object, required: true }, // normalized day (see stores/day.js)
 });
-const emit = defineEmits(['rate', 'acted', 'medication', 'notes']);
+const emit = defineEmits(['rate', 'acted', 'medication', 'notes', 'tracker-note']);
 
 const catalog = useCatalogStore();
 const visible = computed(() => visibleForDay(catalog, props.day));
-
-const notesEl = ref(null);
-function autoGrow() {
-  const el = notesEl.value;
-  if (!el) return;
-  el.style.height = 'auto';
-  el.style.height = `${el.scrollHeight + 2}px`;
-}
-watch(() => props.day.notes, () => nextTick(autoGrow));
-onMounted(autoGrow);
 </script>
 
 <template>
@@ -39,7 +30,9 @@ onMounted(autoGrow);
               :key="t.id"
               :tracker="t"
               :rating="day.ratings[t.id]"
+              :note="day.trackerNotes[t.id] ?? ''"
               @rate="emit('rate', t, $event)"
+              @note="emit('tracker-note', t, $event)"
             />
           </div>
         </section>
@@ -53,8 +46,10 @@ onMounted(autoGrow);
               :key="t.id"
               :tracker="t"
               :rating="day.ratings[t.id]"
+              :note="day.trackerNotes[t.id] ?? ''"
               @rate="emit('rate', t, $event)"
               @acted="emit('acted', t, $event)"
+              @note="emit('tracker-note', t, $event)"
             />
           </div>
         </section>
@@ -74,7 +69,7 @@ onMounted(autoGrow);
           <h2 class="section-title"><label for="day-notes">Notes</label></h2>
           <textarea
             id="day-notes"
-            ref="notesEl"
+            v-autogrow
             class="card"
             rows="5"
             maxlength="20000"
@@ -118,7 +113,6 @@ onMounted(autoGrow);
 .notes textarea {
   min-height: 140px;
   padding: 14px 16px;
-  overflow: hidden;
 }
 
 /* Wide screens (MacBook): ratings on the left, medications and notes alongside. */

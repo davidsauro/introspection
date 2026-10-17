@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildReport, formatNumber } from '../src/utils/report.js';
+import { buildReport, formatNumber, visibleForDay } from '../src/utils/report.js';
 import { dateRange } from '../src/utils/dates.js';
 
 const trackers = [
@@ -89,6 +89,17 @@ describe('buildReport', () => {
     expect(empty.daysWithEntries).toBe(0);
     const s = stat(empty.emotions, 1);
     expect([s.average, s.max, s.daysRated]).toEqual([null, null, 0]);
+  });
+});
+
+describe('visibleForDay', () => {
+  it('shows archived trackers only when that day has a rating or a note for them', () => {
+    const names = (day) => visibleForDay(catalog, day).emotions.map((t) => t.name);
+    const day = (extra) => ({ date: '2026-03-01', notes: '', ratings: {}, medications: {}, trackerNotes: {}, ...extra });
+    expect(names(day())).toEqual(['Sadness']);
+    expect(names(day({ ratings: { 2: { value: 1, scaleMax: 5 } } }))).toEqual(['Sadness', 'Old feeling']);
+    expect(names(day({ trackerNotes: { 3: 'a note' } }))).toEqual(['Sadness', 'Unused archived']);
+    expect(names(day({ trackerNotes: { 3: '   ' } }))).toEqual(['Sadness']);
   });
 });
 

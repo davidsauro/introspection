@@ -63,6 +63,10 @@ const raw = [
       { trackerId: 5, value: 8, scaleMax: 10, actedOn: false }, // recorded before the scale was lowered
     ],
     medications: [{ medicationId: 1, taken: true }],
+    trackerNotes: [
+      { trackerId: 1, note: '  Missed Mum.\nCried after lunch.  ' },
+      { trackerId: 2, note: '   ' },
+    ],
   },
   { date: '2026-03-04', notes: '', ratings: [{ trackerId: 2, value: 5, scaleMax: 5, actedOn: null }], medications: [] },
 ];
@@ -85,6 +89,11 @@ describe('single-day PDF', () => {
     expect(words).toContain('8 / 10');
     expect(words).toContain('Not rated'); // Joy
     expect(words).toContain('10'); // the 0–10 boxes for Skip meals
+  });
+
+  it('shows each card\'s note under it, trimmed, and skips blank notes', () => {
+    expect(words).toContain('Missed Mum.\nCried after lunch.');
+    expect(words.filter((w) => !w.trim())).toEqual(words.filter((w) => w === '')); // no whitespace-only text
   });
 
   it('includes notes, acted-on and medication answers', () => {

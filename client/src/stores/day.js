@@ -12,11 +12,18 @@ export function normalizeDay(raw) {
       raw.ratings.map((r) => [r.trackerId, { value: r.value, scaleMax: r.scaleMax, actedOn: r.actedOn }])
     ),
     medications: Object.fromEntries(raw.medications.map((m) => [m.medicationId, m.taken])),
+    trackerNotes: Object.fromEntries((raw.trackerNotes ?? []).map((n) => [n.trackerId, n.note])),
   };
 }
 
 export function isEmptyDay(day) {
-  return !day || (!day.notes?.trim() && !Object.keys(day.ratings).length && !Object.keys(day.medications).length);
+  return (
+    !day ||
+    (!day.notes?.trim() &&
+      !Object.keys(day.ratings).length &&
+      !Object.keys(day.medications).length &&
+      !Object.values(day.trackerNotes ?? {}).some((n) => n.trim()))
+  );
 }
 
 let timer = null;
@@ -26,7 +33,7 @@ const pendingByDate = new Map();
 
 function pendingFor(date) {
   if (!pendingByDate.has(date)) {
-    pendingByDate.set(date, { notes: undefined, ratings: new Map(), medications: new Map() });
+    pendingByDate.set(date, { notes: undefined, ratings: new Map(), medications: new Map(), trackerNotes: new Map() });
   }
   return pendingByDate.get(date);
 }
@@ -92,6 +99,14 @@ export const useDayStore = defineStore('day', {
       this.schedule();
     },
 
+    // The note under one emotion/urge card. Kept exactly as typed on screen (so a leading
+    // newline or space isn't swallowed); blank text deletes it on the server.
+    setTrackerNote(tracker, text) {
+      this.day.trackerNotes[tracker.id] = text;
+      pendingFor(this.date).trackerNotes.set(tracker.id, { trackerId: tracker.id, note: text.trim() ? text : null });
+      this.schedule();
+    },
+
     queueRating(trackerId) {
       const r = this.day.ratings[trackerId];
       pendingFor(this.date).ratings.set(
@@ -123,6 +138,7 @@ export const useDayStore = defineStore('day', {
             ...(p.notes !== undefined && { notes: p.notes }),
             ratings: [...p.ratings.values()],
             medications: [...p.medications.values()],
+            trackerNotes: [...p.trackerNotes.values()],
           };
           return api.put(`/days/${date}`, body).catch((e) => {
             // The server rejected the data itself; resending it would fail the same way forever.
@@ -133,6 +149,7 @@ export const useDayStore = defineStore('day', {
             if (p.notes !== undefined && again.notes === undefined) again.notes = p.notes;
             for (const [k, v] of p.ratings) if (!again.ratings.has(k)) again.ratings.set(k, v);
             for (const [k, v] of p.medications) if (!again.medications.has(k)) again.medications.set(k, v);
+            for (const [k, v] of p.trackerNotes) if (!again.trackerNotes.has(k)) again.trackerNotes.set(k, v);
             throw e;
           });
         })

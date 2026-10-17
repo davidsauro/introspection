@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.0 — 2026-10-16
+
+- **A note under every emotion and urge card.** It starts as one line and grows as she types, never scrolling inside a fixed box. It autosaves with everything else.
+- Card notes are stored separately from ratings, so she can write a note without rating, and clearing a rating keeps its note. A blank note is removed.
+- The day's main Notes box uses the same auto-growing behaviour.
+- The PDF shows each card's note under its rating, but only when there is one.
+- Archived emotions and urges still appear on a past day if they have a note there.
+- Database migration v2 adds the `tracker_notes` table. It applies automatically on start, and existing data is untouched.
+- Tests: server (save, edit, delete, independence from ratings, validation) and client (autosave, retries, visibility, PDF).
+
 ## 1.1.1 — 2026-10-16
 
 - Plain-HTTP login is allowed from `localhost` (e.g. `http://localhost:3000` on the server) even with `COOKIE_SECURE=true`, so you can test without going through the proxy. Other devices still need HTTPS. The session cookie is `Secure` over HTTPS and plain over localhost HTTP.

@@ -22,7 +22,7 @@ const rating = (day, id) => day.ratings.find((r) => r.trackerId === id);
 test('a day with nothing saved comes back empty', async () => {
   const { status, data } = await c.get('/api/days/2026-03-01');
   assert.equal(status, 200);
-  assert.deepEqual(data, { date: '2026-03-01', notes: '', ratings: [], medications: [] });
+  assert.deepEqual(data, { date: '2026-03-01', notes: '', ratings: [], medications: [], trackerNotes: [] });
 });
 
 test('dates are validated', async () => {
@@ -154,6 +154,55 @@ test('archived trackers and medications keep their history and can still be edit
   await c.patch(`/api/trackers/${t.id}`, { archived: true });
   assert.equal(rating((await c.get('/api/days/2026-03-08')).data, t.id).value, 2);
   assert.equal((await c.put('/api/days/2026-03-08', { ratings: [{ trackerId: t.id, value: 3 }] })).status, 200);
+});
+
+test('a note per emotion/urge: saved, edited, independent of the rating, and cleared', async () => {
+  const note = (day, id) => day.trackerNotes.find((n) => n.trackerId === id)?.note;
+  const date = '2026-03-10';
+
+  // A note with no rating is fine.
+  await c.put(`/api/days/${date}`, { trackerNotes: [{ trackerId: sadness.id, note: 'Missed Mum today.\nCried after lunch.' }] });
+  let day = (await c.get(`/api/days/${date}`)).data;
+  assert.equal(note(day, sadness.id), 'Missed Mum today.\nCried after lunch.');
+  assert.deepEqual(day.ratings, []);
+
+  // Rating, then clearing the rating, leaves the note alone.
+  await c.put(`/api/days/${date}`, { ratings: [{ trackerId: sadness.id, value: 4 }] });
+  await c.put(`/api/days/${date}`, { ratings: [{ trackerId: sadness.id, value: null }] });
+  day = (await c.get(`/api/days/${date}`)).data;
+  assert.equal(note(day, sadness.id), 'Missed Mum today.\nCried after lunch.');
+
+  // Other saves (notes, other notes) don't touch it.
+  await c.put(`/api/days/${date}`, { notes: 'day notes', trackerNotes: [{ trackerId: selfHarm.id, note: 'Urge passed by evening' }] });
+  day = (await c.get(`/api/days/${date}`)).data;
+  assert.equal(note(day, sadness.id), 'Missed Mum today.\nCried after lunch.');
+  assert.equal(note(day, selfHarm.id), 'Urge passed by evening');
+  assert.equal(day.notes, 'day notes');
+
+  // Editing replaces; blank or null deletes.
+  await c.put(`/api/days/${date}`, { trackerNotes: [{ trackerId: sadness.id, note: 'Better now' }] });
+  assert.equal(note((await c.get(`/api/days/${date}`)).data, sadness.id), 'Better now');
+  await c.put(`/api/days/${date}`, { trackerNotes: [{ trackerId: sadness.id, note: '  \n ' }, { trackerId: selfHarm.id, note: null }] });
+  assert.deepEqual((await c.get(`/api/days/${date}`)).data.trackerNotes, []);
+});
+
+test('tracker notes are validated', async () => {
+  const bad = [
+    { trackerNotes: [{ trackerId: sadness.id, note: 'x'.repeat(5001) }] },
+    { trackerNotes: [{ trackerId: sadness.id, note: 42 }] },
+    { trackerNotes: [{ trackerId: sadness.id }] },
+    { trackerNotes: [{ trackerId: 99999, note: 'x' }] },
+    { trackerNotes: [{ note: 'x' }] },
+    { trackerNotes: 'nope' },
+  ];
+  for (const body of bad) assert.equal((await c.put('/api/days/2026-03-11', body)).status, 400, JSON.stringify(body).slice(0, 80));
+  assert.equal((await c.put('/api/days/2026-03-11', { trackerNotes: [{ trackerId: sadness.id, note: 'x'.repeat(5000) }] })).status, 200);
+});
+
+test('a day with only a tracker note shows up in range queries', async () => {
+  await c.put('/api/days/2026-03-12', { trackerNotes: [{ trackerId: selfHarm.id, note: 'only this' }] });
+  const { data } = await c.get('/api/days?from=2026-03-12&to=2026-03-12');
+  assert.deepEqual(data[0].trackerNotes, [{ trackerId: selfHarm.id, note: 'only this' }]);
 });
 
 test('range queries', async () => {

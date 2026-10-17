@@ -33,13 +33,26 @@ describe('normalizeDay / isEmptyDay', () => {
       ratings: [{ trackerId: 1, value: 3, scaleMax: 5, actedOn: null }],
       medications: [{ medicationId: 7, taken: false }],
     });
-    expect(d).toEqual({ date: '2026-03-01', notes: '', ratings: { 1: { value: 3, scaleMax: 5, actedOn: null } }, medications: { 7: false } });
+    expect(d).toEqual({
+      date: '2026-03-01',
+      notes: '',
+      ratings: { 1: { value: 3, scaleMax: 5, actedOn: null } },
+      medications: { 7: false },
+      trackerNotes: {},
+    });
     expect(isEmptyDay(d)).toBe(false);
   });
 
   it('treats whitespace-only notes and no answers as empty', () => {
     expect(isEmptyDay(normalizeDay({ ...emptyRaw('2026-03-01'), notes: ' \n ' }))).toBe(true);
     expect(isEmptyDay(normalizeDay({ ...emptyRaw('2026-03-01'), medications: [{ medicationId: 1, taken: false }] }))).toBe(false);
+  });
+
+  it('counts a day with only a card note as an entry, but not a blank one', () => {
+    const withNote = normalizeDay({ ...emptyRaw('2026-03-01'), trackerNotes: [{ trackerId: 1, note: 'only this' }] });
+    expect(withNote.trackerNotes).toEqual({ 1: 'only this' });
+    expect(isEmptyDay(withNote)).toBe(false);
+    expect(isEmptyDay({ ...withNote, trackerNotes: { 1: '  \n' } })).toBe(true);
   });
 });
 
@@ -59,8 +72,43 @@ describe('autosave', () => {
       notes: 'ab',
       ratings: [{ trackerId: 1, value: 4, scaleMax: 5, actedOn: null }],
       medications: [{ medicationId: 7, taken: true }],
+      trackerNotes: [],
     });
     expect(store.status).toBe('saved');
+  });
+
+  it('saves card notes as typed, with blank notes sent as deletions', async () => {
+    store.setTrackerNote(sadness, '\n');
+    expect(store.day.trackerNotes[sadness.id]).toBe('\n'); // a leading newline isn't swallowed
+    store.setTrackerNote(sadness, '\nMissed Mum');
+    store.setTrackerNote(urge, 'passed');
+    store.setTrackerNote(urge, '   ');
+    await store.flush();
+    expect(api.put).toHaveBeenCalledTimes(1);
+    expect(api.put.mock.calls[0][1].trackerNotes).toEqual([
+      { trackerId: 1, note: '\nMissed Mum' },
+      { trackerId: 2, note: null },
+    ]);
+  });
+
+  it('a card note and a rating on the same card are saved independently', async () => {
+    store.setTrackerNote(sadness, 'heavy day');
+    store.setRating(sadness, 4);
+    store.setRating(sadness, null);
+    await store.flush();
+    const body = api.put.mock.calls[0][1];
+    expect(body.ratings).toEqual([{ trackerId: 1, value: null }]);
+    expect(body.trackerNotes).toEqual([{ trackerId: 1, note: 'heavy day' }]);
+    expect(store.day.trackerNotes[sadness.id]).toBe('heavy day');
+  });
+
+  it('retries card notes after a network failure', async () => {
+    api.put.mockRejectedValueOnce(new Error('offline'));
+    store.setTrackerNote(sadness, 'written offline');
+    await store.flush();
+    await store.flush();
+    expect(api.put).toHaveBeenCalledTimes(2);
+    expect(api.put.mock.calls[1][1].trackerNotes).toEqual([{ trackerId: 1, note: 'written offline' }]);
   });
 
   it('omits notes when they were not touched', async () => {

@@ -5,12 +5,16 @@ import { HttpError, assertDate, assertInt, assertBool } from '../util.js';
 export const daysRouter = express.Router();
 
 const MAX_RANGE_DAYS = 366;
+const MAX_NOTES = 20000;
+const MAX_TRACKER_NOTE = 5000;
+
+const emptyDay = (date) => ({ date, notes: '', ratings: [], medications: [], trackerNotes: [] });
 
 // Loads days in [from, to] keyed by date. Only dates with something stored are included.
 export function loadDays(from, to) {
   const days = new Map();
   const ensure = (date) => {
-    if (!days.has(date)) days.set(date, { date, notes: '', ratings: [], medications: [] });
+    if (!days.has(date)) days.set(date, emptyDay(date));
     return days.get(date);
   };
 
@@ -32,6 +36,9 @@ export function loadDays(from, to) {
     .all(from, to)) {
     ensure(r.date).medications.push({ medicationId: r.medication_id, taken: !!r.taken });
   }
+  for (const r of db.prepare('SELECT date, tracker_id, note FROM tracker_notes WHERE date BETWEEN ? AND ?').all(from, to)) {
+    ensure(r.date).trackerNotes.push({ trackerId: r.tracker_id, note: r.note });
+  }
   return [...days.values()].sort((a, b) => a.date.localeCompare(b.date));
 }
 
@@ -47,15 +54,16 @@ daysRouter.get('/', (req, res) => {
 
 daysRouter.get('/:date', (req, res) => {
   const date = assertDate(req.params.date);
-  res.json(loadDays(date, date)[0] ?? { date, notes: '', ratings: [], medications: [] });
+  res.json(loadDays(date, date)[0] ?? emptyDay(date));
 });
 
 /*
  * Partial update. Only the fields and entries that are sent are changed:
  *   { notes?: string,
  *     ratings?: [{ trackerId, value: int | null, scaleMax?: int, actedOn?: bool | null }],
- *     medications?: [{ medicationId, taken: bool | null }] }
- * A null value/taken clears that entry.
+ *     medications?: [{ medicationId, taken: bool | null }],
+ *     trackerNotes?: [{ trackerId, note: string | null }] }
+ * A null value/taken clears that entry; a null or blank note deletes it.
  *
  * scaleMax is the scale the value was chosen on. It may be the tracker's current scale, or the
  * scale an existing rating for this day was recorded on (so old entries can be edited in place
@@ -63,12 +71,12 @@ daysRouter.get('/:date', (req, res) => {
  */
 daysRouter.put('/:date', (req, res) => {
   const date = assertDate(req.params.date);
-  const { notes, ratings = [], medications = [] } = req.body ?? {};
-  if (notes !== undefined && (typeof notes !== 'string' || notes.length > 20000)) {
-    throw new HttpError(400, 'notes must be a string of at most 20000 characters');
+  const { notes, ratings = [], medications = [], trackerNotes = [] } = req.body ?? {};
+  if (notes !== undefined && (typeof notes !== 'string' || notes.length > MAX_NOTES)) {
+    throw new HttpError(400, `notes must be a string of at most ${MAX_NOTES} characters`);
   }
-  if (!Array.isArray(ratings) || !Array.isArray(medications)) {
-    throw new HttpError(400, 'ratings and medications must be arrays');
+  if (!Array.isArray(ratings) || !Array.isArray(medications) || !Array.isArray(trackerNotes)) {
+    throw new HttpError(400, 'ratings, medications and trackerNotes must be arrays');
   }
 
   for (const r of ratings) {
@@ -76,6 +84,12 @@ daysRouter.put('/:date', (req, res) => {
   }
   for (const m of medications) {
     if (!Number.isInteger(m?.medicationId)) throw new HttpError(400, 'each medication needs an integer medicationId');
+  }
+  for (const n of trackerNotes) {
+    if (!Number.isInteger(n?.trackerId)) throw new HttpError(400, 'each tracker note needs an integer trackerId');
+    if (n.note !== null && (typeof n.note !== 'string' || n.note.length > MAX_TRACKER_NOTE)) {
+      throw new HttpError(400, `a tracker note must be a string of at most ${MAX_TRACKER_NOTE} characters`);
+    }
   }
 
   const getTracker = db.prepare('SELECT id, scale_max FROM trackers WHERE id = ?');
@@ -92,6 +106,11 @@ daysRouter.put('/:date', (req, res) => {
      ON CONFLICT(date, medication_id) DO UPDATE SET taken = excluded.taken`
   );
   const deleteMed = db.prepare('DELETE FROM medication_log WHERE date = ? AND medication_id = ?');
+  const upsertNote = db.prepare(
+    `INSERT INTO tracker_notes (date, tracker_id, note) VALUES (?, ?, ?)
+     ON CONFLICT(date, tracker_id) DO UPDATE SET note = excluded.note`
+  );
+  const deleteNote = db.prepare('DELETE FROM tracker_notes WHERE date = ? AND tracker_id = ?');
 
   db.transaction(() => {
     db.prepare(
@@ -122,6 +141,13 @@ daysRouter.put('/:date', (req, res) => {
       if (!med) throw new HttpError(400, `Unknown medication ${m.medicationId}`);
       if (m.taken === null) deleteMed.run(date, med.id);
       else upsertMed.run(date, med.id, assertBool(m.taken, 'taken') ? 1 : 0);
+    }
+
+    for (const n of trackerNotes) {
+      if (!getTracker.get(n.trackerId)) throw new HttpError(400, `Unknown tracker ${n.trackerId}`);
+      // Stored as typed (line breaks and all); a blank note is the same as no note.
+      if (n.note === null || !n.note.trim()) deleteNote.run(date, n.trackerId);
+      else upsertNote.run(date, n.trackerId, n.note);
     }
   })();
 

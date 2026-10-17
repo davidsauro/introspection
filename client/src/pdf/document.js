@@ -116,7 +116,7 @@ function scaleBoxes(value, max, tone) {
   };
 }
 
-export function trackerCard(tracker, rating) {
+export function trackerCard(tracker, rating, note) {
   // A past entry keeps the scale it was recorded on.
   const max = rating?.scaleMax ?? tracker.scaleMax;
   const stack = [
@@ -135,6 +135,21 @@ export function trackerCard(tracker, rating) {
         { ...answer(rating?.actedOn ?? null, { yesColor: C.danger }), width: 'auto', fontSize: 8 },
       ],
       margin: [0, 4, 0, 0],
+    });
+  }
+  if (note?.trim()) {
+    stack.push({
+      table: { widths: ['*'], body: [[{ text: note.trim(), fontSize: 8, lineHeight: 1.2 }]] },
+      layout: {
+        hLineWidth: () => 0,
+        vLineWidth: (i) => (i === 0 ? 1.5 : 0),
+        vLineColor: () => tint(toneOf(tracker), 45),
+        paddingLeft: () => 5,
+        paddingRight: () => 0,
+        paddingTop: () => 1,
+        paddingBottom: () => 1,
+      },
+      margin: [0, 5, 0, 0],
     });
   }
   return card({ stack });
@@ -176,7 +191,9 @@ export function daySection(date, day, catalog, { pageBreak } = {}) {
     ['Urges', visible.urges],
   ]) {
     content.push(heading(title));
-    if (trackers.length) content.push(...cardRows(trackers.map((t) => trackerCard(t, day.ratings[t.id])), 3));
+    if (trackers.length) {
+      content.push(...cardRows(trackers.map((t) => trackerCard(t, day.ratings[t.id], day.trackerNotes?.[t.id])), 3));
+    }
     else content.push({ text: `No ${title.toLowerCase()} set up.`, color: C.muted, fontSize: 8.5, margin: [0, 0, 0, 8] });
   }
 

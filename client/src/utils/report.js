@@ -57,7 +57,8 @@ export function buildReport(catalog, rawDays, dates) {
 export function visibleForDay(catalog, day) {
   const ratings = day?.ratings ?? {};
   const meds = day?.medications ?? {};
-  const tracker = (t) => !t.archived || ratings[t.id];
+  const notes = day?.trackerNotes ?? {};
+  const tracker = (t) => !t.archived || ratings[t.id] || notes[t.id]?.trim();
   return {
     emotions: catalog.emotions.filter(tracker),
     urges: catalog.urges.filter(tracker),
