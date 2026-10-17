@@ -16,9 +16,10 @@ Stack: Vue 3 + Vite, Node.js (Express 5), SQLite (better-sqlite3), and headless 
 ## Run it on the home server
 
 ```sh
-mkdir -p data && sudo chown 1000:1000 data   # the container runs as uid 1000
 docker compose up -d --build
 ```
+
+The first build takes a few minutes, and the image is about 1.5 GB, mostly Chromium for the PDFs. The container creates `./data` if it's missing and fixes its ownership, then runs the app as an unprivileged user.
 
 The app listens on port **3000**. Point your reverse proxy (which handles HTTPS) at `http://<server>:3000`.
 

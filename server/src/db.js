@@ -4,9 +4,21 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 
 const DB_PATH = process.env.DB_PATH || path.resolve('data/diary.db');
-fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
-export const db = new Database(DB_PATH);
+function open() {
+  try {
+    fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
+    return new Database(DB_PATH);
+  } catch (err) {
+    console.error(
+      `Cannot open the database at ${DB_PATH}: ${err.message}\n` +
+        `Check that the folder exists and is writable by this process (uid ${process.getuid?.()}).`
+    );
+    process.exit(1);
+  }
+}
+
+export const db = open();
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 

@@ -40,8 +40,20 @@ The first version of a private, self-hosted daily diary card, modelled on the da
 - `server`: 34 API tests (`npm test`), including real PDF rendering when Chromium is available.
 - `client`: 26 unit tests (`npm test`) for dates, report building and autosave.
 
+### Docker verification
+
+- Built and ran the image with `docker compose`. Checked:
+  - Healthcheck.
+  - HTTPS-only login behind the proxy, and the `Secure` cookie flag.
+  - Saving data and client-side routes.
+  - Asset caching.
+  - PDF export using the container's own Chromium (about 1.2 s per PDF).
+  - Graceful restart.
+  - Data and logins surviving `restart` and a full `down`/`up`.
+- The container now fixes ownership of a root-owned data folder (which Docker creates when `./data` is missing) and then drops to an unprivileged user. Before this, it crash-looped with `SQLITE_CANTOPEN`.
+- PDFs use Liberation Sans, so text kerns properly. Alpine's default FreeSans spaced letters unevenly.
+
 ### Known gaps
 
-- The Docker image has not been built or run yet (Docker wasn't available on the development machine).
 - Sharing a PDF from iOS needs checking on a real iPhone and iPad.
 - Charts don't change colour if the light/dark theme switches while History is open; reloading fixes it.
