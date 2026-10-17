@@ -8,8 +8,8 @@ services:
       - "3000:3000"
     environment:
       TZ: America/New_York # set to your time zone
-      # Your reverse proxy serves the site over HTTPS, so the login cookie is HTTPS-only.
-      # Set to "false" only if you open the app directly over plain HTTP.
+      # Logins must come over HTTPS (your reverse proxy), except from http://localhost:3000 on
+      # this machine. Set to "false" to allow plain-HTTP logins from any device.
       COOKIE_SECURE: "true"
     volumes:
       - ./data:/data # the SQLite database lives here; back up this folder

@@ -58,7 +58,9 @@ export const sessionMiddleware = session({
   cookie: {
     httpOnly: true,
     sameSite: 'lax',
-    secure: COOKIE_SECURE,
+    // 'auto': Secure over HTTPS (via the proxy), plain over HTTP. Plain HTTP logins are only
+    // allowed from localhost while COOKIE_SECURE is on; see insecureCookieProblem().
+    secure: COOKIE_SECURE ? 'auto' : false,
     maxAge: SESSION_DAYS * 864e5,
   },
 });
@@ -103,11 +105,21 @@ function validPassword(pw) {
 
 const passwordRule = `Password must be ${MIN_PASSWORD}-${MAX_PASSWORD} characters`;
 
-// With COOKIE_SECURE on, a browser silently drops the login cookie over plain HTTP, which would
-// look like a login loop. Refuse up front with an explanation instead.
+const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
+
+// Opened as http://localhost:PORT on the server itself (e.g. for testing). Judged by the
+// hostname in the request, not the client IP: inside Docker, requests from the host arrive
+// from the bridge gateway, not loopback. A client that fakes the hostname only exposes its
+// own traffic, which is the risk HTTPS-only login is there to prevent.
+function isLocalhost(req) {
+  return LOCAL_HOSTNAMES.has(req.hostname);
+}
+
+// With COOKIE_SECURE on, logins must come over HTTPS, apart from localhost. Refusing up front
+// (with an explanation) beats a silent login loop from a cookie the browser won't keep.
 function insecureCookieProblem(req) {
-  if (COOKIE_SECURE && !req.secure) {
-    return 'This server only allows logging in over HTTPS. Open it through your HTTPS address, or set COOKIE_SECURE=false.';
+  if (COOKIE_SECURE && !req.secure && !isLocalhost(req)) {
+    return 'This server only allows logging in over HTTPS (or from localhost). Open it through your HTTPS address, or set COOKIE_SECURE=false.';
   }
   return null;
 }

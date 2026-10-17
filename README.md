@@ -29,7 +29,7 @@ The first visit asks you to choose a password. Settings comes with a starter lis
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `COOKIE_SECURE` | `true` | Login cookie is only sent over HTTPS. Set to `false` only if you open the app over plain HTTP. |
+| `COOKIE_SECURE` | `true` | Logins must come over HTTPS (through your proxy), except from `http://localhost:3000` on the server itself, which is handy for testing. Set to `false` to allow plain HTTP from any device. |
 | `TZ` | – | Server time zone (log timestamps). Diary dates always come from the device's own date. |
 | `TRUST_PROXY` | private networks | Express `trust proxy` setting, if your proxy isn't on a private network. |
 

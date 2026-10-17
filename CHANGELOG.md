@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1 — 2026-10-16
+
+- Plain-HTTP login is allowed from `localhost` (e.g. `http://localhost:3000` on the server) even with `COOKIE_SECURE=true`, so you can test without going through the proxy. Other devices still need HTTPS. The session cookie is `Secure` over HTTPS and plain over localhost HTTP.
+
 ## 1.1.0 — 2026-10-16
 
 ### PDFs are now made in the browser
