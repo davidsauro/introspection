@@ -62,6 +62,18 @@ const dayNum = (d) => Number(d.slice(8));
             </td>
           </tr>
         </template>
+
+        <template v-if="report.skills.length">
+          <tr class="section">
+            <th :colspan="report.dates.length + 1" scope="colgroup">Skills used</th>
+          </tr>
+          <tr v-for="s in report.skills" :key="s.skill.id">
+            <th class="name" scope="row" :title="s.skill.name">{{ s.skill.name }}</th>
+            <td v-for="(used, i) in s.used" :key="i" class="cell skill" :class="{ used }">
+              {{ used ? '✓' : '' }}
+            </td>
+          </tr>
+        </template>
       </tbody>
     </table>
   </div>
@@ -166,6 +178,11 @@ td {
 
 .med.no {
   color: var(--muted);
+}
+
+.skill.used {
+  background: color-mix(in srgb, var(--accent) 22%, var(--surface));
+  color: var(--accent);
 }
 
 .sr-only {

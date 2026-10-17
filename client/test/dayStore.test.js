@@ -39,6 +39,7 @@ describe('normalizeDay / isEmptyDay', () => {
       ratings: { 1: { value: 3, scaleMax: 5, actedOn: null } },
       medications: { 7: false },
       trackerNotes: {},
+      skills: {},
     });
     expect(isEmptyDay(d)).toBe(false);
   });
@@ -73,6 +74,7 @@ describe('autosave', () => {
       ratings: [{ trackerId: 1, value: 4, scaleMax: 5, actedOn: null }],
       medications: [{ medicationId: 7, taken: true }],
       trackerNotes: [],
+      skills: [],
     });
     expect(store.status).toBe('saved');
   });
@@ -109,6 +111,24 @@ describe('autosave', () => {
     await store.flush();
     expect(api.put).toHaveBeenCalledTimes(2);
     expect(api.put.mock.calls[1][1].trackerNotes).toEqual([{ trackerId: 1, note: 'written offline' }]);
+  });
+
+  it('ticking and unticking skills', async () => {
+    const wiseMind = { id: 11 };
+    const tipp = { id: 12 };
+    store.setSkill(wiseMind, true);
+    store.setSkill(tipp, true);
+    store.setSkill(tipp, false);
+    expect(store.day.skills).toEqual({ 11: true });
+    await store.flush();
+    expect(api.put.mock.calls[0][1].skills).toEqual([
+      { skillId: 11, used: true },
+      { skillId: 12, used: false },
+    ]);
+  });
+
+  it('a day with only skills ticked counts as an entry', () => {
+    expect(isEmptyDay(normalizeDay({ ...emptyRaw('2026-03-01'), skills: [3] }))).toBe(false);
   });
 
   it('omits notes when they were not touched', async () => {

@@ -5,7 +5,11 @@ A private, self-hosted daily diary card for one person. It's modelled on the dai
 - rate **emotions** and **urges** on configurable scales (0–5 by default, up to 0–10)
 - record whether you **acted on** each urge
 - mark each **medication** as taken (Yes/No)
+- add a **note under each emotion and urge**
+- tick the **DBT skills** used (32 built in, with search and module filters)
 - write free-text **notes**
+
+The Day screen also shows a **day streak**, **skills used** and **total entries**.
 
 The **History** screen shows a heatmap and trend charts. **Export** creates a PDF for a therapist with the same data as the app. A single day is one page. A range of days is a summary with charts, followed by a page per day. The PDF is generated in the browser on her device, so the server doesn't need to do anything for it.
 

@@ -14,10 +14,17 @@ const medications = [
   { id: 2, name: 'Never recorded', archived: false },
   { id: 3, name: 'Old med', archived: true },
 ];
+const skills = [
+  { id: 1, module: 'interpersonal', name: 'DEAR MAN', sortOrder: 0, archived: false },
+  { id: 2, module: 'mindfulness', name: 'Wise Mind', sortOrder: 0, archived: false },
+  { id: 3, module: 'distress', name: 'Never used', sortOrder: 0, archived: false },
+  { id: 4, module: 'distress', name: 'Retired skill', sortOrder: 1, archived: true },
+];
 const catalog = {
   emotions: trackers.filter((t) => t.kind === 'emotion'),
   urges: trackers.filter((t) => t.kind === 'urge'),
   medications,
+  skills,
 };
 
 const raw = [
@@ -31,12 +38,14 @@ const raw = [
       { trackerId: 5, value: 8, scaleMax: 10, actedOn: false }, // recorded before the scale was lowered
     ],
     medications: [{ medicationId: 1, taken: true }],
+    skills: [1, 2, 4],
   },
   {
     date: '2026-03-03',
     notes: 'ok',
     ratings: [{ trackerId: 1, value: 5, scaleMax: 5, actedOn: null }, { trackerId: 4, value: 0, scaleMax: 5, actedOn: false }],
     medications: [{ medicationId: 1, taken: false }],
+    skills: [2],
   },
   // A day that exists in the database but has had everything cleared.
   { date: '2026-03-04', notes: '  ', ratings: [], medications: [] },
@@ -84,11 +93,22 @@ describe('buildReport', () => {
     expect([never.recorded, never.percent]).toEqual([0, null]);
   });
 
+  it('lists skills used in the range, in module order, with day counts', () => {
+    expect(report.skills.map((s) => [s.skill.name, s.days])).toEqual([
+      ['Wise Mind', 2],
+      ['Retired skill', 1], // archived, but used in the range
+      ['DEAR MAN', 1],
+    ]);
+    expect(stat(report.skills.map((s) => ({ ...s, tracker: s.skill })), 2).used).toEqual([true, false, true, false]);
+    expect(report.skillTicks).toBe(4);
+  });
+
   it('handles a range with no data at all', () => {
     const empty = buildReport(catalog, [], dateRange('2026-04-01', '2026-04-03'));
     expect(empty.daysWithEntries).toBe(0);
     const s = stat(empty.emotions, 1);
     expect([s.average, s.max, s.daysRated]).toEqual([null, null, 0]);
+    expect([empty.skills, empty.skillTicks]).toEqual([[], 0]);
   });
 });
 

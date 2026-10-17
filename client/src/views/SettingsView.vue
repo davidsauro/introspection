@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth.js';
 import { useCatalogStore } from '../stores/catalog.js';
 import ItemList from '../components/ItemList.vue';
+import SkillList from '../components/SkillList.vue';
 
 const auth = useAuthStore();
 const catalog = useCatalogStore();
@@ -56,6 +57,11 @@ async function logout() {
       <section>
         <h2 class="section-title">Medications</h2>
         <ItemList kind="medication" />
+      </section>
+
+      <section>
+        <h2 class="section-title">Skills</h2>
+        <SkillList />
       </section>
 
       <section>

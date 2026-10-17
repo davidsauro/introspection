@@ -3,6 +3,7 @@
 // browser (see charts.js) and passed in as data URLs.
 import { formatLong, formatRange, formatShort, formatWeekday } from '../utils/dates.js';
 import { formatNumber, visibleForDay } from '../utils/report.js';
+import { MODULES, compareSkills } from '../utils/skills.js';
 
 export const PAGE = { size: 'LETTER', margins: [40, 48, 40, 44] };
 // Content width in points: Letter is 612pt wide.
@@ -172,6 +173,21 @@ function medicationsBox(medications, values) {
   };
 }
 
+// Skills ticked that day, listed under their module.
+function skillsBox(day, catalog) {
+  const used = (catalog.skills ?? []).filter((s) => day.skills?.[s.id]).sort(compareSkills);
+  if (!used.length) return card({ text: 'No skills recorded.', fontSize: 9, color: C.muted });
+  return card({
+    stack: MODULES.map((m) => ({ m, names: used.filter((s) => s.module === m.key).map((s) => s.name) }))
+      .filter((g) => g.names.length)
+      .map((g) => ({
+        text: [{ text: `${g.m.label}: `, bold: true }, g.names.join(', ')],
+        fontSize: 9,
+        margin: [0, 1, 0, 1],
+      })),
+  });
+}
+
 function notesBox(notes) {
   const text = notes?.trim();
   return card(text ? { text: notes, fontSize: 9, lineHeight: 1.25 } : { text: 'No notes.', fontSize: 9, color: C.muted });
@@ -204,6 +220,7 @@ export function daySection(date, day, catalog, { pageBreak } = {}) {
     ],
     columnGap: 12,
   });
+  content.push({ stack: [heading('Skills used'), skillsBox(day, catalog)], unbreakable: true });
   return content;
 }
 
@@ -257,6 +274,16 @@ function heatmapTable(report, from, to) {
           alignment: 'center',
           fillColor: C.surface2,
         })),
+      ]);
+    }
+  }
+
+  if (report.skills.length) {
+    body.push(sectionRow('Skills used'));
+    for (const sk of report.skills) {
+      body.push([
+        { text: sk.skill.name, bold: true },
+        ...sk.used.slice(start, end + 1).map((u) => ({ text: '', fillColor: u ? tint(C.accent, 45) : C.surface2 })),
       ]);
     }
   }
@@ -340,6 +367,32 @@ function medicationTable(meds) {
   };
 }
 
+function skillsTable(report) {
+  const head = ['Skill', 'Module', 'Days used'].map((text, i) => ({
+    text,
+    fontSize: 7.5,
+    bold: true,
+    color: C.muted,
+    alignment: i === 2 ? 'right' : 'left',
+  }));
+  const byUse = [...report.skills].sort((a, b) => b.days - a.days || compareSkills(a.skill, b.skill));
+  const rows = byUse.map((s) => [
+    { text: s.skill.name, bold: true },
+    { text: MODULES.find((m) => m.key === s.skill.module)?.label ?? '', color: C.muted },
+    { text: String(s.days), alignment: 'right' },
+  ]);
+  const total = [
+    { text: `${report.skills.length} different skills`, color: C.muted },
+    { text: '' },
+    { text: `${report.skillTicks} in total`, alignment: 'right', color: C.muted },
+  ];
+  return {
+    table: { headerRows: 1, widths: ['*', 'auto', 60], body: [head, ...rows, total] },
+    layout: tableLayout,
+    fontSize: 8.5,
+  };
+}
+
 export function summarySection(report, chartImages = {}) {
   const from = report.dates[0];
   const to = report.dates.at(-1);
@@ -362,7 +415,7 @@ export function summarySection(report, chartImages = {}) {
     text: [
       'Shading shows how strong each rating was for its scale. ',
       { text: '•', color: C.danger, fontSize: 10 },
-      ' = acted on.  Y / N = medication taken / not taken.',
+      ' = acted on.  Y / N = medication taken / not taken.  Shaded skill cells = skill used.',
     ],
     fontSize: 7,
     color: C.muted,
@@ -379,6 +432,12 @@ export function summarySection(report, chartImages = {}) {
   if (report.medications.length) {
     content.push({ stack: [heading('Medications'), medicationTable(report.medications)], unbreakable: true });
   }
+  content.push(heading('Skills used'));
+  content.push(
+    report.skills.length
+      ? skillsTable(report)
+      : { text: 'No skills recorded in this range.', fontSize: 9, color: C.muted }
+  );
   return content;
 }
 

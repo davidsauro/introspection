@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.3.0 — 2026-10-17
+
+### DBT skills
+- **32 built-in skills** in four modules: Mindfulness (7), Distress Tolerance (11), Emotion Regulation (8) and Interpersonal (6). That's DBT Pal's 26 plus STOP, TIPP, IMPROVE the moment, Turning the mind, Half-smile and willing hands, and Mindfulness of current emotion. Each has a one-line description in our own words.
+- **Skills section at the bottom of the Day screen:** the day's ticked skills, then the most recently used, topped up with 13 starter skills (Wise Mind, Observe, Describe, Nonjudgmental stance, Distract with ACCEPTS, Self-soothe, Radical acceptance, Check the Facts, Opposite Action, PLEASE, DEAR MAN, GIVE, Validation). Simple checkboxes that autosave. The list stays put while she ticks.
+- **Browse all skills:** search by name or description and filter by module. Full screen on a phone, a dialog on iPad and Mac.
+- **Settings → Skills:** add, rename, describe, move between modules, reorder, archive and restore, grouped into collapsible modules.
+- **History and PDF:** skills used appear as grid rows. The PDF summary gets a "Skills used" table, and each day page lists that day's skills by module.
+
+### Summary boxes
+- **Day Streak:** consecutive days with an entry. It counts back from yesterday until today is logged, so it doesn't reset each morning.
+- **Skills Used:** all-time total of skill ticks.
+- **Total Entries:** days with anything logged.
+- Computed from her device's date, and refreshed after every save.
+
+### Under the hood
+- **Migration v3** adds `skills` and `skill_log`, and gives existing diaries the 32 default skills. Migration steps can now include code, and each runs in one transaction with its seed data.
+- **New API:** `/api/skills` (with `lastUsed`) and `/api/stats?today=`. Days now include `skills`.
+- **Tests:** 47 server (skills, ticks, streak edge cases, upgrade from v2) and 62 client (Recent-list rules, search/filter, store, reports, PDF).
+
 ## 1.2.0 — 2026-10-16
 
 - **A note under every emotion and urge card.** It starts as one line and grows as she types, never scrolling inside a fixed box. It autosaves with everything else.

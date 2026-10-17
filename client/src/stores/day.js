@@ -13,6 +13,7 @@ export function normalizeDay(raw) {
     ),
     medications: Object.fromEntries(raw.medications.map((m) => [m.medicationId, m.taken])),
     trackerNotes: Object.fromEntries((raw.trackerNotes ?? []).map((n) => [n.trackerId, n.note])),
+    skills: Object.fromEntries((raw.skills ?? []).map((id) => [id, true])),
   };
 }
 
@@ -22,7 +23,8 @@ export function isEmptyDay(day) {
     (!day.notes?.trim() &&
       !Object.keys(day.ratings).length &&
       !Object.keys(day.medications).length &&
-      !Object.values(day.trackerNotes ?? {}).some((n) => n.trim()))
+      !Object.values(day.trackerNotes ?? {}).some((n) => n.trim()) &&
+      !Object.keys(day.skills ?? {}).length)
   );
 }
 
@@ -33,7 +35,7 @@ const pendingByDate = new Map();
 
 function pendingFor(date) {
   if (!pendingByDate.has(date)) {
-    pendingByDate.set(date, { notes: undefined, ratings: new Map(), medications: new Map(), trackerNotes: new Map() });
+    pendingByDate.set(date, { notes: undefined, ratings: new Map(), medications: new Map(), trackerNotes: new Map(), skills: new Map() });
   }
   return pendingByDate.get(date);
 }
@@ -99,6 +101,13 @@ export const useDayStore = defineStore('day', {
       this.schedule();
     },
 
+    setSkill(skill, used) {
+      if (used) this.day.skills[skill.id] = true;
+      else delete this.day.skills[skill.id];
+      pendingFor(this.date).skills.set(skill.id, { skillId: skill.id, used });
+      this.schedule();
+    },
+
     // The note under one emotion/urge card. Kept exactly as typed on screen (so a leading
     // newline or space isn't swallowed); blank text deletes it on the server.
     setTrackerNote(tracker, text) {
@@ -139,6 +148,7 @@ export const useDayStore = defineStore('day', {
             ratings: [...p.ratings.values()],
             medications: [...p.medications.values()],
             trackerNotes: [...p.trackerNotes.values()],
+            skills: [...p.skills.values()],
           };
           return api.put(`/days/${date}`, body).catch((e) => {
             // The server rejected the data itself; resending it would fail the same way forever.
@@ -150,6 +160,7 @@ export const useDayStore = defineStore('day', {
             for (const [k, v] of p.ratings) if (!again.ratings.has(k)) again.ratings.set(k, v);
             for (const [k, v] of p.medications) if (!again.medications.has(k)) again.medications.set(k, v);
             for (const [k, v] of p.trackerNotes) if (!again.trackerNotes.has(k)) again.trackerNotes.set(k, v);
+            for (const [k, v] of p.skills) if (!again.skills.has(k)) again.skills.set(k, v);
             throw e;
           });
         })

@@ -5,13 +5,14 @@ import { visibleForDay } from '../utils/report.js';
 import { vAutogrow } from '../utils/autogrow.js';
 import TrackerCard from './TrackerCard.vue';
 import MedicationList from './MedicationList.vue';
+import SkillsSection from './SkillsSection.vue';
 
 // One day laid out as the diary card on the Day screen. The PDF (src/pdf/document.js)
 // shows the same items via visibleForDay().
 const props = defineProps({
   day: { type: Object, required: true }, // normalized day (see stores/day.js)
 });
-const emit = defineEmits(['rate', 'acted', 'medication', 'notes', 'tracker-note']);
+const emit = defineEmits(['rate', 'acted', 'medication', 'notes', 'tracker-note', 'skill']);
 
 const catalog = useCatalogStore();
 const visible = computed(() => visibleForDay(catalog, props.day));
@@ -79,6 +80,8 @@ const visible = computed(() => visibleForDay(catalog, props.day));
           />
         </section>
       </div>
+
+      <SkillsSection class="skills-row" :day="day" @toggle="(s, used) => emit('skill', s, used)" />
     </div>
   </div>
 </template>
@@ -124,6 +127,9 @@ const visible = computed(() => visibleForDay(catalog, props.day));
   .side {
     position: sticky;
     top: 16px;
+  }
+  .skills-row {
+    grid-column: 1 / -1;
   }
 }
 </style>

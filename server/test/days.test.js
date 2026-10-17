@@ -22,7 +22,7 @@ const rating = (day, id) => day.ratings.find((r) => r.trackerId === id);
 test('a day with nothing saved comes back empty', async () => {
   const { status, data } = await c.get('/api/days/2026-03-01');
   assert.equal(status, 200);
-  assert.deepEqual(data, { date: '2026-03-01', notes: '', ratings: [], medications: [], trackerNotes: [] });
+  assert.deepEqual(data, { date: '2026-03-01', notes: '', ratings: [], medications: [], trackerNotes: [], skills: [] });
 });
 
 test('dates are validated', async () => {

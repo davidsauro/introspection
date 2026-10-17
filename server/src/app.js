@@ -6,6 +6,8 @@ import { sessionMiddleware, requireAuth, authRouter } from './auth.js';
 import { trackersRouter } from './routes/trackers.js';
 import { medicationsRouter } from './routes/medications.js';
 import { daysRouter } from './routes/days.js';
+import { skillsRouter } from './routes/skills.js';
+import { statsRouter } from './routes/stats.js';
 import { errorHandler } from './util.js';
 
 const PUBLIC_DIR = path.resolve(process.env.PUBLIC_DIR || 'public');
@@ -22,6 +24,8 @@ app.use('/api/auth', authRouter);
 app.use('/api/trackers', requireAuth, trackersRouter);
 app.use('/api/medications', requireAuth, medicationsRouter);
 app.use('/api/days', requireAuth, daysRouter);
+app.use('/api/skills', requireAuth, skillsRouter);
+app.use('/api/stats', requireAuth, statsRouter);
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
 
 // Built Vue app, with SPA fallback so client-side routes like /history load index.html.

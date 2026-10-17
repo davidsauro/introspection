@@ -46,6 +46,12 @@ const trackers = [
 const catalog = {
   emotions: trackers.filter((t) => t.kind === 'emotion'),
   urges: trackers.filter((t) => t.kind === 'urge'),
+  skills: [
+    { id: 1, module: 'mindfulness', name: 'Wise Mind', sortOrder: 0, archived: false },
+    { id: 2, module: 'mindfulness', name: 'Observe', sortOrder: 1, archived: false },
+    { id: 3, module: 'distress', name: 'TIPP', sortOrder: 0, archived: false },
+    { id: 4, module: 'interpersonal', name: 'GIVE', sortOrder: 0, archived: false },
+  ],
   medications: [
     { id: 1, name: 'Sertraline', dose: '50mg', archived: false },
     { id: 2, name: 'Old med', dose: '', archived: true },
@@ -63,6 +69,7 @@ const raw = [
       { trackerId: 5, value: 8, scaleMax: 10, actedOn: false }, // recorded before the scale was lowered
     ],
     medications: [{ medicationId: 1, taken: true }],
+    skills: [3, 1, 2],
     trackerNotes: [
       { trackerId: 1, note: '  Missed Mum.\nCried after lunch.  ' },
       { trackerId: 2, note: '   ' },
@@ -103,6 +110,12 @@ describe('single-day PDF', () => {
     expect(words).toContain('No');
   });
 
+  it('lists the skills used, grouped by module', () => {
+    const lines = doc.content.flatMap((n) => n.stack ?? []).flatMap((n) => n.table?.body?.[0]?.[0]?.stack ?? []);
+    const text = lines.map((l) => texts(l).join(''));
+    expect(text).toEqual(['Mindfulness: Wise Mind, Observe', 'Distress Tolerance: TIPP']);
+  });
+
   it('renders to a one-page PDF', async () => {
     const { buffer, pages } = await render(doc);
     expect(buffer.subarray(0, 5).toString()).toBe('%PDF-');
@@ -130,6 +143,12 @@ describe('multi-day PDF', () => {
     const dayHeadings = doc.content.filter((n) => n.style === 'h1' && n.pageBreak === 'before');
     expect(dayHeadings).toHaveLength(7);
     expect(words.filter((w) => w === 'No entry recorded for this day.')).toHaveLength(5);
+  });
+
+  it('summarises skills used across the range', () => {
+    expect(words).toContain('Skills used');
+    expect(words).toContain('3 different skills');
+    expect(words).toContain('3 in total');
   });
 
   it('summarises urges and medications', () => {

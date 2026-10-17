@@ -1,4 +1,5 @@
 import { normalizeDay, isEmptyDay } from '../stores/day.js';
+import { compareSkills } from './skills.js';
 
 // Builds everything History and the PDF report need for a date range.
 // `rawDays` is the /api/days?from&to response; `dates` is every date in the range.
@@ -43,12 +44,23 @@ export function buildReport(catalog, rawDays, dates) {
     return { medication: m, taken, recorded, yes, percent: recorded ? Math.round((yes / recorded) * 100) : null };
   };
 
+  // Skills: only those used in the range (32 rows of mostly blanks would bury the rest).
+  const skills = (catalog.skills ?? [])
+    .map((skill) => {
+      const used = dates.map((date) => !!days[date]?.skills[skill.id]);
+      return { skill, used, days: used.filter(Boolean).length };
+    })
+    .filter((s) => s.days)
+    .sort((a, b) => compareSkills(a.skill, b.skill));
+
   return {
     dates,
     days,
     emotions: emotions.map(trackerStats),
     urges: urges.map(trackerStats),
     medications: medications.map(medStats),
+    skills,
+    skillTicks: skills.reduce((n, s) => n + s.days, 0),
     daysWithEntries: dates.filter((d) => days[d]).length,
   };
 }
@@ -66,4 +78,4 @@ export function visibleForDay(catalog, day) {
   };
 }
 
-export const formatNumber =(n) => (n === null ? '–' : Number.isInteger(n) ? String(n) : n.toFixed(1));
+export const formatNumber = (n) => (n === null ? '–' : Number.isInteger(n) ? String(n) : n.toFixed(1));

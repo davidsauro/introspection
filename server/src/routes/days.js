@@ -8,7 +8,7 @@ const MAX_RANGE_DAYS = 366;
 const MAX_NOTES = 20000;
 const MAX_TRACKER_NOTE = 5000;
 
-const emptyDay = (date) => ({ date, notes: '', ratings: [], medications: [], trackerNotes: [] });
+const emptyDay = (date) => ({ date, notes: '', ratings: [], medications: [], trackerNotes: [], skills: [] });
 
 // Loads days in [from, to] keyed by date. Only dates with something stored are included.
 export function loadDays(from, to) {
@@ -39,6 +39,9 @@ export function loadDays(from, to) {
   for (const r of db.prepare('SELECT date, tracker_id, note FROM tracker_notes WHERE date BETWEEN ? AND ?').all(from, to)) {
     ensure(r.date).trackerNotes.push({ trackerId: r.tracker_id, note: r.note });
   }
+  for (const r of db.prepare('SELECT date, skill_id FROM skill_log WHERE date BETWEEN ? AND ? ORDER BY skill_id').all(from, to)) {
+    ensure(r.date).skills.push(r.skill_id);
+  }
   return [...days.values()].sort((a, b) => a.date.localeCompare(b.date));
 }
 
@@ -62,7 +65,8 @@ daysRouter.get('/:date', (req, res) => {
  *   { notes?: string,
  *     ratings?: [{ trackerId, value: int | null, scaleMax?: int, actedOn?: bool | null }],
  *     medications?: [{ medicationId, taken: bool | null }],
- *     trackerNotes?: [{ trackerId, note: string | null }] }
+ *     trackerNotes?: [{ trackerId, note: string | null }],
+ *     skills?: [{ skillId, used: bool }] }
  * A null value/taken clears that entry; a null or blank note deletes it.
  *
  * scaleMax is the scale the value was chosen on. It may be the tracker's current scale, or the
@@ -71,12 +75,12 @@ daysRouter.get('/:date', (req, res) => {
  */
 daysRouter.put('/:date', (req, res) => {
   const date = assertDate(req.params.date);
-  const { notes, ratings = [], medications = [], trackerNotes = [] } = req.body ?? {};
+  const { notes, ratings = [], medications = [], trackerNotes = [], skills = [] } = req.body ?? {};
   if (notes !== undefined && (typeof notes !== 'string' || notes.length > MAX_NOTES)) {
     throw new HttpError(400, `notes must be a string of at most ${MAX_NOTES} characters`);
   }
-  if (!Array.isArray(ratings) || !Array.isArray(medications) || !Array.isArray(trackerNotes)) {
-    throw new HttpError(400, 'ratings, medications and trackerNotes must be arrays');
+  if (![ratings, medications, trackerNotes, skills].every(Array.isArray)) {
+    throw new HttpError(400, 'ratings, medications, trackerNotes and skills must be arrays');
   }
 
   for (const r of ratings) {
@@ -90,6 +94,10 @@ daysRouter.put('/:date', (req, res) => {
     if (n.note !== null && (typeof n.note !== 'string' || n.note.length > MAX_TRACKER_NOTE)) {
       throw new HttpError(400, `a tracker note must be a string of at most ${MAX_TRACKER_NOTE} characters`);
     }
+  }
+  for (const s of skills) {
+    if (!Number.isInteger(s?.skillId)) throw new HttpError(400, 'each skill needs an integer skillId');
+    assertBool(s.used, 'used');
   }
 
   const getTracker = db.prepare('SELECT id, scale_max FROM trackers WHERE id = ?');
@@ -111,6 +119,9 @@ daysRouter.put('/:date', (req, res) => {
      ON CONFLICT(date, tracker_id) DO UPDATE SET note = excluded.note`
   );
   const deleteNote = db.prepare('DELETE FROM tracker_notes WHERE date = ? AND tracker_id = ?');
+  const getSkill = db.prepare('SELECT id FROM skills WHERE id = ?');
+  const logSkill = db.prepare('INSERT OR IGNORE INTO skill_log (date, skill_id) VALUES (?, ?)');
+  const unlogSkill = db.prepare('DELETE FROM skill_log WHERE date = ? AND skill_id = ?');
 
   db.transaction(() => {
     db.prepare(
@@ -148,6 +159,12 @@ daysRouter.put('/:date', (req, res) => {
       // Stored as typed (line breaks and all); a blank note is the same as no note.
       if (n.note === null || !n.note.trim()) deleteNote.run(date, n.trackerId);
       else upsertNote.run(date, n.trackerId, n.note);
+    }
+
+    for (const s of skills) {
+      if (!getSkill.get(s.skillId)) throw new HttpError(400, `Unknown skill ${s.skillId}`);
+      if (s.used) logSkill.run(date, s.skillId);
+      else unlogSkill.run(date, s.skillId);
     }
   })();
 

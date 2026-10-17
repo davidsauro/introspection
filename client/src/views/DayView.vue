@@ -6,6 +6,8 @@ import { useDayStore } from '../stores/day.js';
 import { addDays, currentDay } from '../utils/dates.js';
 import DateNav from '../components/DateNav.vue';
 import DaySheet from '../components/DaySheet.vue';
+import StatsStrip from '../components/StatsStrip.vue';
+import { useStatsStore } from '../stores/stats.js';
 import AppIcon from '../components/AppIcon.vue';
 
 const props = defineProps({ date: { type: String, required: true } });
@@ -13,6 +15,7 @@ const props = defineProps({ date: { type: String, required: true } });
 const router = useRouter();
 const catalog = useCatalogStore();
 const store = useDayStore();
+const stats = useStatsStore();
 
 const statusText = computed(
   () =>
@@ -30,11 +33,24 @@ function go(date) {
 
 watch(
   () => props.date,
-  async (date) => {
+  async (date, previous) => {
     await catalog.load();
+    // Each new day re-checks which skills were used most recently, for the Recent list,
+    // after saving any ticks from the day she's leaving.
+    if (previous) {
+      await store.flush();
+      await catalog.refreshSkills();
+    }
     await store.load(date);
   },
   { immediate: true }
+);
+
+// The summary boxes: on open, and after each save.
+stats.refresh();
+watch(
+  () => store.status,
+  (status) => status === 'saved' && stats.refresh()
 );
 
 // If she was on "today" when the date rolled over (e.g. reopening the app next morning),
@@ -47,7 +63,7 @@ watch(currentDay, (now, before) => {
 
 // ←/→ change day on a keyboard, unless she's typing or using a rating scale.
 function onKey(e) {
-  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.metaKey || e.ctrlKey || e.altKey || document.querySelector('dialog[open]')) return;
   const el = document.activeElement;
   if (el && (el.closest('input, textarea, select, [role="radiogroup"]') || el.isContentEditable)) return;
   if (e.key === 'ArrowLeft') go(addDays(props.date, -1));
@@ -84,6 +100,8 @@ onBeforeRouteLeave(() => store.flush());
       </RouterLink>
     </header>
 
+    <StatsStrip />
+
     <p v-if="store.error && !store.day" class="error-text">{{ store.error }}</p>
     <DaySheet
       v-if="store.day?.date === date && catalog.loaded"
@@ -93,6 +111,7 @@ onBeforeRouteLeave(() => store.flush());
       @medication="store.setMedication"
       @notes="store.setNotes"
       @tracker-note="store.setTrackerNote"
+      @skill="store.setSkill"
     />
   </div>
 </template>

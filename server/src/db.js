@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { DEFAULT_SKILLS } from './skills-seed.js';
 
 const DB_PATH = process.env.DB_PATH || path.resolve('data/diary.db');
 
@@ -22,7 +23,8 @@ export const db = open();
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
-// Each entry runs once, in order; PRAGMA user_version records how many have been applied.
+// Each entry runs once, in order, inside a transaction; PRAGMA user_version records how many
+// have been applied. An entry is SQL, or a function for steps that also insert data.
 const migrations = [
   `
   CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT);
@@ -85,29 +87,55 @@ const migrations = [
     PRIMARY KEY (date, tracker_id)
   );
   `,
+  // v3: DBT skills, and which were used on which day. Existing diaries get the defaults too.
+  () => {
+    db.exec(`
+      CREATE TABLE skills (
+        id INTEGER PRIMARY KEY,
+        module TEXT NOT NULL CHECK (module IN ('mindfulness', 'distress', 'emotion', 'interpersonal')),
+        name TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        starter INTEGER NOT NULL DEFAULT 0,
+        sort_order INTEGER NOT NULL,
+        archived_at TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE skill_log (
+        date TEXT NOT NULL,
+        skill_id INTEGER NOT NULL REFERENCES skills(id),
+        PRIMARY KEY (date, skill_id)
+      );
+      CREATE INDEX skill_log_skill ON skill_log (skill_id, date);
+    `);
+    const insert = db.prepare('INSERT INTO skills (module, name, description, starter, sort_order) VALUES (?, ?, ?, ?, ?)');
+    for (const [module, skills] of Object.entries(DEFAULT_SKILLS)) {
+      skills.forEach(([name, description, starter], i) => insert.run(module, name, description, starter ? 1 : 0, i));
+    }
+  },
 ];
 
 function migrate() {
   const current = db.pragma('user_version', { simple: true });
   for (let v = current; v < migrations.length; v++) {
     db.transaction(() => {
-      db.exec(migrations[v]);
+      const step = migrations[v];
+      if (typeof step === 'function') step();
+      else db.exec(step);
+      if (v === 0) seedTrackers();
       db.pragma(`user_version = ${v + 1}`);
     })();
-    if (v === 0) seed();
   }
 }
 
-function seed() {
+function seedTrackers() {
   const insert = db.prepare(
     'INSERT INTO trackers (kind, name, scale_max, track_acted, sort_order) VALUES (?, ?, 5, ?, ?)'
   );
   const emotions = ['Sadness', 'Anxiety / Fear', 'Anger', 'Shame', 'Guilt', 'Joy'];
   const urges = ['Self-harm', 'Suicidal thoughts', 'Substance use', 'Isolating'];
-  db.transaction(() => {
-    emotions.forEach((name, i) => insert.run('emotion', name, 0, i));
-    urges.forEach((name, i) => insert.run('urge', name, 1, i));
-  })();
+  emotions.forEach((name, i) => insert.run('emotion', name, 0, i));
+  urges.forEach((name, i) => insert.run('urge', name, 1, i));
 }
 
 export function getSetting(key) {
