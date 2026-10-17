@@ -1,0 +1,17 @@
+services:
+  diary:
+    build: .
+    image: introspection-diary
+    container_name: diary
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      TZ: America/New_York # set to your time zone
+      # Your reverse proxy serves the site over HTTPS, so the login cookie is HTTPS-only.
+      # Set to "false" only if you open the app directly over plain HTTP.
+      COOKIE_SECURE: "true"
+      PDF_FORMAT: Letter # or A4
+      REPORT_TITLE: Diary Card # shown in the PDF page header
+    volumes:
+      - ./data:/data # the SQLite database lives here; back up this folder

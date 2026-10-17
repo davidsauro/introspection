@@ -1,0 +1,298 @@
+:root {
+  --bg: #f6f5f2;
+  --surface: #ffffff;
+  --surface-2: #efede8;
+  --text: #23262b;
+  --muted: #6b7078;
+  --border: #e2dfd8;
+  --accent: #4f7c78;
+  --accent-contrast: #ffffff;
+  --urge: #b0664c;
+  --urge-contrast: #ffffff;
+  --yes: #4f7c78;
+  --no: #8a8f97;
+  --danger: #b3412f;
+  --focus: #2f6fdb;
+  --radius: 14px;
+  --radius-sm: 10px;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 2px 8px rgb(0 0 0 / 0.04);
+  --tap: 44px;
+  --nav-h: 64px;
+  --sidebar-w: 220px;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.force-light) {
+    --bg: #1b1d22;
+    --surface: #24272d;
+    --surface-2: #2d3138;
+    --text: #e8e6e1;
+    --muted: #9ba0a8;
+    --border: #363a42;
+    --accent: #7fb3ad;
+    --accent-contrast: #0f1a19;
+    --urge: #e09878;
+    --urge-contrast: #22130d;
+    --yes: #7fb3ad;
+    --no: #8a8f97;
+    --danger: #ec7b67;
+    --focus: #7aa7ff;
+    --shadow: none;
+  }
+}
+
+/* The PDF report always renders in the light theme. */
+:root.force-light {
+  color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.2;
+  margin: 0;
+}
+
+h1 {
+  font-size: 1.5rem;
+  font-weight: 650;
+}
+
+h2 {
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+
+h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+a {
+  color: var(--accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* ---------- Building blocks ---------- */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 14px 16px;
+  break-inside: avoid;
+}
+
+.section-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 10px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  font-size: 0.85rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: var(--tap);
+  padding: 0 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: 550;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.btn.ghost {
+  background: transparent;
+  border-color: transparent;
+}
+
+.btn.danger {
+  color: var(--danger);
+}
+
+.btn.icon {
+  width: var(--tap);
+  padding: 0;
+}
+
+@media (hover: hover) {
+  .btn:not(:disabled):hover {
+    background: var(--surface-2);
+  }
+  .btn.primary:not(:disabled):hover {
+    background: var(--accent);
+    filter: brightness(1.07);
+  }
+}
+
+input[type='text'],
+input[type='password'],
+input[type='date'],
+select,
+textarea {
+  font: inherit;
+  font-size: 16px; /* 16px+ stops iOS Safari zooming in on focus */
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  min-height: var(--tap);
+  padding: 8px 12px;
+  width: 100%;
+}
+
+textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+
+label.field {
+  display: grid;
+  gap: 6px;
+  font-weight: 550;
+  font-size: 0.9rem;
+}
+
+.error-text {
+  color: var(--danger);
+  font-size: 0.9rem;
+}
+
+/* Two-option Yes / No control */
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.segmented button {
+  min-width: 56px;
+  min-height: var(--tap);
+  padding: 0 12px;
+  font: inherit;
+  font-weight: 550;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.segmented button + button {
+  border-left: 1px solid var(--border);
+}
+
+.segmented button[aria-checked='true'].yes {
+  background: var(--yes);
+  color: var(--accent-contrast);
+}
+
+.segmented button[aria-checked='true'].no {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.segmented button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.stack {
+  display: grid;
+  gap: 12px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+/* ---------- Print ---------- */
+
+@media print {
+  body {
+    background: #fff;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .card {
+    box-shadow: none;
+  }
+  h1,
+  h2,
+  .section-title {
+    break-after: avoid;
+  }
+}
