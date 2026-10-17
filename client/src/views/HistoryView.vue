@@ -37,17 +37,20 @@ const atToday = computed(() => end.value >= today());
 
 watch(
   [start, end],
-  async ([from, to]) => {
+  async ([from, to], _old, onCleanup) => {
+    // Paging quickly can return responses out of order; ignore any for a range we've left.
+    let stale = false;
+    onCleanup(() => (stale = true));
     loading.value = true;
     error.value = '';
     try {
       await catalog.load();
       const raw = await api.get(`/days?from=${from}&to=${to}`);
-      report.value = buildReport(catalog, raw, dateRange(from, to));
+      if (!stale) report.value = buildReport(catalog, raw, dateRange(from, to));
     } catch (e) {
-      error.value = e.message;
+      if (!stale) error.value = e.message;
     } finally {
-      loading.value = false;
+      if (!stale) loading.value = false;
     }
   },
   { immediate: true }

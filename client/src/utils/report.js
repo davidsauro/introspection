@@ -1,9 +1,15 @@
-import { normalizeDay } from '../stores/day.js';
+import { normalizeDay, isEmptyDay } from '../stores/day.js';
 
 // Builds everything History and the PDF report need for a date range.
 // `rawDays` is the /api/days?from&to response; `dates` is every date in the range.
+// Days that exist but hold nothing (e.g. everything was cleared) count as no entry.
 export function buildReport(catalog, rawDays, dates) {
-  const days = Object.fromEntries(rawDays.map((d) => [d.date, normalizeDay(d)]));
+  const days = Object.fromEntries(
+    rawDays
+      .map(normalizeDay)
+      .filter((d) => !isEmptyDay(d))
+      .map((d) => [d.date, d])
+  );
 
   // Archived items only appear if they have data in this range.
   const hasRating = (t) => dates.some((d) => days[d]?.ratings[t.id]);

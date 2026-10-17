@@ -1,14 +1,16 @@
 <script setup>
 import { computed } from 'vue';
 import AppIcon from './AppIcon.vue';
-import { addDays, formatLong, relativeLabel, today } from '../utils/dates.js';
+import { addDays, formatLong, relativeLabel, currentDay } from '../utils/dates.js';
 
 const props = defineProps({ date: { type: String, required: true } });
 const emit = defineEmits(['change']);
 
-const isToday = computed(() => props.date === today());
-const canGoForward = computed(() => props.date < today());
-const relative = computed(() => relativeLabel(props.date));
+const today = () => currentDay.value;
+const isToday = computed(() => props.date === currentDay.value);
+const canGoForward = computed(() => props.date < currentDay.value);
+// Reading currentDay makes the label update at midnight.
+const relative = computed(() => (currentDay.value, relativeLabel(props.date)));
 
 function pick(e) {
   if (e.target.value) emit('change', e.target.value);

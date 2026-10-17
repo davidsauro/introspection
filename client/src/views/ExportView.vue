@@ -27,9 +27,10 @@ const activePreset = computed(() =>
   to.value === today() ? presets.find((p) => from.value === addDays(today(), -(p.days - 1)))?.days : null
 );
 
-const dayCount = computed(() => (isValidDate(from.value) && isValidDate(to.value) ? daysBetween(from.value, to.value) + 1 : 0));
+const datesValid = computed(() => isValidDate(from.value) && isValidDate(to.value));
+const dayCount = computed(() => (datesValid.value ? daysBetween(from.value, to.value) + 1 : 0));
 const rangeError = computed(() => {
-  if (!dayCount.value) return 'Choose a start and end date.';
+  if (!datesValid.value) return 'Choose a start and end date.';
   if (dayCount.value < 1) return 'The start date must be on or before the end date.';
   if (dayCount.value > MAX_DAYS) return `A PDF can cover up to ${MAX_DAYS} days.`;
   return '';

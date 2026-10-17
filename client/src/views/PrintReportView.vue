@@ -28,8 +28,6 @@ const gridChunks = computed(() => {
   return out;
 });
 
-const emptyDay = (date) => ({ date, notes: '', ratings: {}, medications: {} });
-
 onMounted(async () => {
   document.documentElement.classList.add('force-light');
   try {
@@ -53,8 +51,8 @@ onMounted(async () => {
       <header class="report-head">
         <h1>{{ formatLong(from) }}</h1>
       </header>
-      <DaySheet :day="report.days[from] ?? emptyDay(from)" readonly />
-      <p v-if="!report.days[from]" class="muted">No entry recorded for this day.</p>
+      <DaySheet v-if="report.days[from]" :day="report.days[from]" readonly />
+      <p v-else class="card muted no-entry">No entry recorded for this day.</p>
     </template>
 
     <template v-else>

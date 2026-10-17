@@ -39,6 +39,7 @@ onMounted(autoGrow);
       <div class="pane">
         <section>
           <h2 class="section-title">Emotions</h2>
+          <p v-if="!emotions.length" class="muted small empty">No emotions set up. Add them in Settings.</p>
           <div class="grid">
             <TrackerCard
               v-for="t in emotions"
@@ -53,6 +54,7 @@ onMounted(autoGrow);
 
         <section>
           <h2 class="section-title">Urges</h2>
+          <p v-if="!urges.length" class="muted small empty">No urges set up. Add them in Settings.</p>
           <div class="grid">
             <TrackerCard
               v-for="t in urges"
@@ -90,6 +92,7 @@ onMounted(autoGrow);
             ref="notesEl"
             class="card"
             rows="5"
+            maxlength="20000"
             placeholder="How was today? Anything you want to remember or share…"
             :value="day.notes"
             @input="emit('notes', $event.target.value)"
@@ -121,6 +124,10 @@ onMounted(autoGrow);
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
   gap: 12px;
+}
+
+.empty {
+  margin: 0;
 }
 
 .notes textarea {

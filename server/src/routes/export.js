@@ -5,9 +5,8 @@ import { HttpError, assertDate } from '../util.js';
 export const exportRouter = express.Router();
 
 const MAX_RANGE_DAYS = 92;
-const PORT = process.env.PORT || 3000;
 // Where Chromium loads the print page from. Override in dev to point at the Vite server.
-const PRINT_BASE_URL = process.env.PRINT_BASE_URL || `http://127.0.0.1:${PORT}`;
+const printBaseUrl = () => process.env.PRINT_BASE_URL || `http://127.0.0.1:${process.env.PORT || 3000}`;
 const PDF_FORMAT = process.env.PDF_FORMAT || 'Letter';
 const REPORT_TITLE = process.env.REPORT_TITLE || 'Diary Card';
 const CHROMIUM_PATH = process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium';
@@ -41,6 +40,12 @@ function getBrowser() {
   return browserPromise;
 }
 
+export async function closeBrowser() {
+  if (!browserPromise) return;
+  const browser = await browserPromise.catch(() => null);
+  await browser?.close().catch(() => {});
+}
+
 function sessionCookie(req) {
   const match = /(?:^|;\s*)diary\.sid=([^;]+)/.exec(req.headers.cookie ?? '');
   return match?.[1];
@@ -59,11 +64,11 @@ exportRouter.get('/pdf', async (req, res) => {
   const browser = await getBrowser();
   const page = await browser.newPage();
   try {
-    const base = new URL(PRINT_BASE_URL);
-    await page.setCookie({ name: 'diary.sid', value: sessionCookie(req), domain: base.hostname, path: '/', httpOnly: true });
+    const base = printBaseUrl();
+    await page.setCookie({ name: 'diary.sid', value: sessionCookie(req), domain: new URL(base).hostname, path: '/', httpOnly: true });
     await page.setViewport({ width: contentWidth(), height: 1000 });
     await page.emulateMediaType('print');
-    await page.goto(`${PRINT_BASE_URL}/print?from=${from}&to=${to}`, { waitUntil: 'networkidle0', timeout: 30000 });
+    await page.goto(`${base}/print?from=${from}&to=${to}`, { waitUntil: 'networkidle0', timeout: 30000 });
     await page.waitForFunction('window.__REPORT_READY__ === true || window.__REPORT_ERROR__', { timeout: 30000 });
     const reportError = await page.evaluate(() => window.__REPORT_ERROR__);
     if (reportError) throw new Error(`Report failed to render: ${reportError}`);

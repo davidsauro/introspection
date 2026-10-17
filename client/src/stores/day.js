@@ -61,8 +61,13 @@ export const useDayStore = defineStore('day', {
       if (value === null) {
         delete this.day.ratings[tracker.id];
       } else {
+        // Re-rating an existing entry keeps the scale it was recorded on (the card shows that scale).
         const prev = this.day.ratings[tracker.id];
-        this.day.ratings[tracker.id] = { value, scaleMax: tracker.scaleMax, actedOn: prev?.actedOn ?? null };
+        this.day.ratings[tracker.id] = {
+          value,
+          scaleMax: prev?.scaleMax ?? tracker.scaleMax,
+          actedOn: prev?.actedOn ?? null,
+        };
       }
       this.queueRating(tracker.id);
     },
@@ -89,7 +94,10 @@ export const useDayStore = defineStore('day', {
 
     queueRating(trackerId) {
       const r = this.day.ratings[trackerId];
-      pendingFor(this.date).ratings.set(trackerId, { trackerId, value: r?.value ?? null, actedOn: r?.actedOn ?? null });
+      pendingFor(this.date).ratings.set(
+        trackerId,
+        r ? { trackerId, value: r.value, scaleMax: r.scaleMax, actedOn: r.actedOn } : { trackerId, value: null }
+      );
       this.schedule();
     },
 
@@ -117,7 +125,10 @@ export const useDayStore = defineStore('day', {
             medications: [...p.medications.values()],
           };
           return api.put(`/days/${date}`, body).catch((e) => {
-            // Put the failed changes back (unless newer edits replaced them) so the next save retries.
+            // The server rejected the data itself; resending it would fail the same way forever.
+            if (e.status >= 400 && e.status < 500 && e.status !== 401) throw e;
+            // Otherwise (offline, server down, logged out) put the changes back, unless newer
+            // edits replaced them, so the next save retries.
             const again = pendingFor(date);
             if (p.notes !== undefined && again.notes === undefined) again.notes = p.notes;
             for (const [k, v] of p.ratings) if (!again.ratings.has(k)) again.ratings.set(k, v);

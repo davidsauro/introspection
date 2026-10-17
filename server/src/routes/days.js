@@ -53,9 +53,13 @@ daysRouter.get('/:date', (req, res) => {
 /*
  * Partial update. Only the fields and entries that are sent are changed:
  *   { notes?: string,
- *     ratings?: [{ trackerId, value: int | null, actedOn?: bool | null }],
+ *     ratings?: [{ trackerId, value: int | null, scaleMax?: int, actedOn?: bool | null }],
  *     medications?: [{ medicationId, taken: bool | null }] }
  * A null value/taken clears that entry.
+ *
+ * scaleMax is the scale the value was chosen on. It may be the tracker's current scale, or the
+ * scale an existing rating for this day was recorded on (so old entries can be edited in place
+ * after the tracker's scale changes). It defaults to the tracker's current scale.
  */
 daysRouter.put('/:date', (req, res) => {
   const date = assertDate(req.params.date);
@@ -67,7 +71,15 @@ daysRouter.put('/:date', (req, res) => {
     throw new HttpError(400, 'ratings and medications must be arrays');
   }
 
-  const getTracker = db.prepare('SELECT id, scale_max, track_acted FROM trackers WHERE id = ?');
+  for (const r of ratings) {
+    if (!Number.isInteger(r?.trackerId)) throw new HttpError(400, 'each rating needs an integer trackerId');
+  }
+  for (const m of medications) {
+    if (!Number.isInteger(m?.medicationId)) throw new HttpError(400, 'each medication needs an integer medicationId');
+  }
+
+  const getTracker = db.prepare('SELECT id, scale_max FROM trackers WHERE id = ?');
+  const getExisting = db.prepare('SELECT scale_max FROM ratings WHERE date = ? AND tracker_id = ?');
   const getMedication = db.prepare('SELECT id FROM medications WHERE id = ?');
   const upsertRating = db.prepare(
     `INSERT INTO ratings (date, tracker_id, value, scale_max, acted_on) VALUES (?, ?, ?, ?, ?)
@@ -88,21 +100,26 @@ daysRouter.put('/:date', (req, res) => {
     ).run(date, notes ?? null, notes ?? null);
 
     for (const r of ratings) {
-      const tracker = getTracker.get(r?.trackerId);
-      if (!tracker) throw new HttpError(400, `Unknown tracker ${r?.trackerId}`);
+      const tracker = getTracker.get(r.trackerId);
+      if (!tracker) throw new HttpError(400, `Unknown tracker ${r.trackerId}`);
       if (r.value === null) {
         deleteRating.run(date, tracker.id);
         continue;
       }
-      const value = assertInt(r.value, 'value', 0, tracker.scale_max);
-      let actedOn = null;
-      if (tracker.track_acted && r.actedOn != null) actedOn = assertBool(r.actedOn, 'actedOn') ? 1 : 0;
-      upsertRating.run(date, tracker.id, value, tracker.scale_max, actedOn);
+      const existing = getExisting.get(date, tracker.id);
+      const scaleMax = r.scaleMax ?? tracker.scale_max;
+      if (scaleMax !== tracker.scale_max && scaleMax !== existing?.scale_max) {
+        throw new HttpError(400, `scaleMax must be ${tracker.scale_max} (the tracker's current scale)`);
+      }
+      const value = assertInt(r.value, 'value', 0, scaleMax);
+      // Stored whenever sent, even if the tracker no longer asks, so editing an old entry keeps it.
+      const actedOn = r.actedOn == null ? null : assertBool(r.actedOn, 'actedOn') ? 1 : 0;
+      upsertRating.run(date, tracker.id, value, scaleMax, actedOn);
     }
 
     for (const m of medications) {
-      const med = getMedication.get(m?.medicationId);
-      if (!med) throw new HttpError(400, `Unknown medication ${m?.medicationId}`);
+      const med = getMedication.get(m.medicationId);
+      if (!med) throw new HttpError(400, `Unknown medication ${m.medicationId}`);
       if (m.taken === null) deleteMed.run(date, med.id);
       else upsertMed.run(date, med.id, assertBool(m.taken, 'taken') ? 1 : 0);
     }

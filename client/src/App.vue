@@ -2,13 +2,13 @@
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import AppIcon from './components/AppIcon.vue';
-import { today } from './utils/dates.js';
+import { currentDay } from './utils/dates.js';
 
 const route = useRoute();
 const bare = computed(() => route.meta.bare);
 
 const links = computed(() => [
-  { to: `/day/${today()}`, label: 'Day', icon: 'day', active: route.name === 'day' },
+  { to: `/day/${currentDay.value}`, label: 'Day', icon: 'day', active: route.name === 'day' },
   { to: '/history', label: 'History', icon: 'history', active: route.name === 'history' },
   { to: '/export', label: 'Export', icon: 'export', active: route.name === 'export' },
   { to: '/settings', label: 'Settings', icon: 'settings', active: route.name === 'settings' },

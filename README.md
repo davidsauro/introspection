@@ -67,10 +67,24 @@ PDF export in development needs a local Chrome/Chromium, and the server must loa
 PUPPETEER_EXECUTABLE_PATH=/path/to/chrome PRINT_BASE_URL=http://localhost:5173 npm run dev
 ```
 
+### Tests
+
+```sh
+cd server && npm test     # API tests (node:test), each file against a fresh temporary database
+cd client && npm test     # unit tests (Vitest): dates, report building, autosave store
+```
+
+The server suite also renders real PDFs when Chromium and a built client are available:
+
+```sh
+(cd client && npm run build) && cd server && PUPPETEER_EXECUTABLE_PATH=/path/to/chrome npm test
+```
+
 ## Layout
 
 ```
-server/src/index.js           Express app, static hosting + SPA fallback
+server/src/app.js             Express app, static hosting + SPA fallback
+server/src/index.js           starts the server, graceful shutdown
 server/src/db.js              SQLite connection, migrations (PRAGMA user_version), seed data
 server/src/auth.js            single-password login, SQLite-backed sessions
 server/src/routes/            trackers, medications, days, export (PDF via puppeteer-core)

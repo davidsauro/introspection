@@ -5,6 +5,8 @@ import { db, getSetting, setSetting } from './db.js';
 
 const SESSION_DAYS = 30;
 const MIN_PASSWORD = 8;
+const MAX_PASSWORD = 200;
+const COOKIE_SECURE = process.env.COOKIE_SECURE === 'true';
 
 class SqliteStore extends session.Store {
   constructor() {
@@ -56,7 +58,7 @@ export const sessionMiddleware = session({
   cookie: {
     httpOnly: true,
     sameSite: 'lax',
-    secure: process.env.COOKIE_SECURE === 'true',
+    secure: COOKIE_SECURE,
     maxAge: SESSION_DAYS * 864e5,
   },
 });
@@ -86,8 +88,28 @@ function recordFailure(ip) {
   }
 }
 
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of failures) if (entry.resetAt < now) failures.delete(ip);
+}, WINDOW_MS).unref();
+
+export function resetLoginLimiter() {
+  failures.clear();
+}
+
 function validPassword(pw) {
-  return typeof pw === 'string' && pw.length >= MIN_PASSWORD;
+  return typeof pw === 'string' && pw.length >= MIN_PASSWORD && pw.length <= MAX_PASSWORD;
+}
+
+const passwordRule = `Password must be ${MIN_PASSWORD}-${MAX_PASSWORD} characters`;
+
+// With COOKIE_SECURE on, a browser silently drops the login cookie over plain HTTP, which would
+// look like a login loop. Refuse up front with an explanation instead.
+function insecureCookieProblem(req) {
+  if (COOKIE_SECURE && !req.secure) {
+    return 'This server only allows logging in over HTTPS. Open it through your HTTPS address, or set COOKIE_SECURE=false.';
+  }
+  return null;
 }
 
 function logIn(req, res) {
@@ -109,16 +131,21 @@ authRouter.get('/status', (req, res) => {
 
 authRouter.post('/setup', async (req, res) => {
   if (getSetting('password_hash')) return res.status(409).json({ error: 'Already set up' });
+  const problem = insecureCookieProblem(req);
+  if (problem) return res.status(400).json({ error: problem });
   const { password } = req.body ?? {};
-  if (!validPassword(password)) {
-    return res.status(400).json({ error: `Password must be at least ${MIN_PASSWORD} characters` });
-  }
-  setSetting('password_hash', await bcrypt.hash(password, 12));
+  if (!validPassword(password)) return res.status(400).json({ error: passwordRule });
+  const hash = await bcrypt.hash(password, 12);
+  // Insert-if-absent, so two setup requests racing through the check above can't both win.
+  const { changes } = db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES ('password_hash', ?)").run(hash);
+  if (!changes) return res.status(409).json({ error: 'Already set up' });
   logIn(req, res);
 });
 
 authRouter.post('/login', async (req, res) => {
   if (isLimited(req.ip)) return res.status(429).json({ error: 'Too many attempts. Try again later.' });
+  const problem = insecureCookieProblem(req);
+  if (problem) return res.status(400).json({ error: problem });
   const hash = getSetting('password_hash');
   const { password } = req.body ?? {};
   if (!hash || typeof password !== 'string' || !(await bcrypt.compare(password, hash))) {
@@ -141,9 +168,7 @@ authRouter.post('/password', requireAuth, async (req, res) => {
   if (typeof currentPassword !== 'string' || !(await bcrypt.compare(currentPassword, getSetting('password_hash')))) {
     return res.status(401).json({ error: 'Current password is incorrect' });
   }
-  if (!validPassword(newPassword)) {
-    return res.status(400).json({ error: `Password must be at least ${MIN_PASSWORD} characters` });
-  }
+  if (!validPassword(newPassword)) return res.status(400).json({ error: passwordRule });
   setSetting('password_hash', await bcrypt.hash(newPassword, 12));
   // Log out every other device, keeping only this session.
   db.prepare('DELETE FROM sessions WHERE sid != ?').run(req.sessionID);

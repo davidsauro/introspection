@@ -23,7 +23,9 @@ async function submit() {
   try {
     if (setup.value) await auth.setup(password.value);
     else await auth.login(password.value);
-    const next = typeof route.query.next === 'string' && route.query.next.startsWith('/') ? route.query.next : '/';
+    // Only follow same-site paths ("//host" would be another site).
+    const n = route.query.next;
+    const next = typeof n === 'string' && n.startsWith('/') && !n.startsWith('//') ? n : '/';
     router.replace(next);
   } catch (e) {
     error.value = e.message;

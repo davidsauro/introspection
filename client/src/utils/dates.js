@@ -1,11 +1,24 @@
 // Diary dates are plain 'YYYY-MM-DD' strings in her local time zone. Arithmetic is done
 // in UTC on those strings so daylight-saving changes can never skip or repeat a day.
+import { ref } from 'vue';
 
 const pad = (n) => String(n).padStart(2, '0');
 
 export function today() {
   const d = new Date();
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+// Reactive "today" for UI that must notice midnight. A home-screen app can stay open (or be
+// resumed) across days, so this re-checks every minute and whenever the app comes back.
+export const currentDay = ref(today());
+if (typeof window !== 'undefined') {
+  const refresh = () => {
+    if (currentDay.value !== today()) currentDay.value = today();
+  };
+  setInterval(refresh, 60_000);
+  document.addEventListener('visibilitychange', refresh);
+  window.addEventListener('focus', refresh);
 }
 
 const toUtc = (date) => new Date(`${date}T00:00:00Z`);
@@ -28,7 +41,10 @@ export function dateRange(from, to) {
 }
 
 export function isValidDate(value) {
-  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && fromUtc(toUtc(value)) === value;
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const d = toUtc(value);
+  // Impossible dates like 2026-13-01 are Invalid Date; ones like 2026-02-30 roll over to March.
+  return !Number.isNaN(d.getTime()) && fromUtc(d) === value;
 }
 
 const fmt = (opts) => new Intl.DateTimeFormat(undefined, { timeZone: 'UTC', ...opts });

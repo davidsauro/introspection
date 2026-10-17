@@ -3,7 +3,7 @@ import { computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter, onBeforeRouteLeave } from 'vue-router';
 import { useCatalogStore } from '../stores/catalog.js';
 import { useDayStore } from '../stores/day.js';
-import { addDays, today } from '../utils/dates.js';
+import { addDays, currentDay } from '../utils/dates.js';
 import DateNav from '../components/DateNav.vue';
 import DaySheet from '../components/DaySheet.vue';
 import AppIcon from '../components/AppIcon.vue';
@@ -20,7 +20,7 @@ const statusText = computed(
       pending: 'Saving…',
       saving: 'Saving…',
       saved: 'Saved',
-      error: "Couldn't save — will retry",
+      error: `Couldn't save: ${store.error}`,
     })[store.status] ?? ''
 );
 
@@ -37,13 +37,21 @@ watch(
   { immediate: true }
 );
 
+// If she was on "today" when the date rolled over (e.g. reopening the app next morning),
+// move to the new today rather than leaving her on yesterday.
+// Not while she's typing, though: writing notes across midnight shouldn't whisk the page away.
+watch(currentDay, (now, before) => {
+  const typing = document.activeElement?.matches('textarea, input');
+  if (props.date === before && !typing) go(now);
+});
+
 // ←/→ change day on a keyboard, unless she's typing or using a rating scale.
 function onKey(e) {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const el = document.activeElement;
   if (el && (el.closest('input, textarea, select, [role="radiogroup"]') || el.isContentEditable)) return;
   if (e.key === 'ArrowLeft') go(addDays(props.date, -1));
-  else if (e.key === 'ArrowRight' && props.date < today()) go(addDays(props.date, 1));
+  else if (e.key === 'ArrowRight' && props.date < currentDay.value) go(addDays(props.date, 1));
 }
 
 // Save straight away when the app is backgrounded or closed.
@@ -78,7 +86,7 @@ onBeforeRouteLeave(() => store.flush());
 
     <p v-if="store.error && !store.day" class="error-text">{{ store.error }}</p>
     <DaySheet
-      v-if="store.day && store.date === date && catalog.loaded"
+      v-if="store.day?.date === date && catalog.loaded"
       :day="store.day"
       @rate="store.setRating"
       @acted="store.setActed"

@@ -19,7 +19,10 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   const auth = useAuthStore();
-  if (!auth.loaded) await auth.refresh();
+  if (!auth.loaded) {
+    // If the server can't be reached, fall through to the login screen, which reports the error.
+    await auth.refresh().catch(() => {});
+  }
   if (to.meta.public) {
     return auth.authenticated ? '/' : true;
   }
