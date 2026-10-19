@@ -108,11 +108,17 @@ const migrations = [
       );
       CREATE INDEX skill_log_skill ON skill_log (skill_id, date);
     `);
-    const insert = db.prepare('INSERT INTO skills (module, name, description, starter, sort_order) VALUES (?, ?, ?, ?, ?)');
+    const insert = db.prepare('INSERT INTO skills (module, name, description, sort_order) VALUES (?, ?, ?, ?)');
     for (const [module, skills] of Object.entries(DEFAULT_SKILLS)) {
-      skills.forEach(([name, description, starter], i) => insert.run(module, name, description, starter ? 1 : 0, i));
+      skills.forEach(([name, description], i) => insert.run(module, name, description, i));
     }
   },
+  // v4: no built-in starter skills. She stars the skills she wants on the Day screen herself,
+  // so everything starts unstarred.
+  `
+  ALTER TABLE skills RENAME COLUMN starter TO starred;
+  UPDATE skills SET starred = 0;
+  `,
 ];
 
 function migrate() {

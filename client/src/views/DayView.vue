@@ -35,12 +35,7 @@ watch(
   () => props.date,
   async (date, previous) => {
     await catalog.load();
-    // Each new day re-checks which skills were used most recently, for the Recent list,
-    // after saving any ticks from the day she's leaving.
-    if (previous) {
-      await store.flush();
-      await catalog.refreshSkills();
-    }
+    if (previous) await store.flush();
     await store.load(date);
   },
   { immediate: true }

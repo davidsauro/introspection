@@ -1,11 +1,11 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { useCatalogStore } from '../stores/catalog.js';
-import { recentSkillIds } from '../utils/skills.js';
+import { daySkillIds } from '../utils/skills.js';
 import SkillCheckRow from './SkillCheckRow.vue';
 import SkillBrowser from './SkillBrowser.vue';
 
-// "Skills" on the Day screen: today's ticks plus recent skills, and "Browse all skills".
+// "Skills" on the Day screen: her starred skills plus today's ticks, and "Browse all skills".
 const props = defineProps({
   day: { type: Object, required: true }, // normalized day
 });
@@ -14,12 +14,13 @@ const emit = defineEmits(['toggle']);
 const catalog = useCatalogStore();
 const browsing = ref(false);
 
-// The list is worked out when a day opens and then kept steady, so rows don't jump around
-// while she ticks them. Skills ticked from Browse are added to the end.
+// The list is worked out when a day opens (or her stars change) and then kept steady, so rows
+// don't jump around while she ticks them. Skills ticked from Browse are added to the end.
 const shownIds = ref([]);
+const starredKey = computed(() => catalog.skills.filter((s) => s.starred && !s.archived).map((s) => s.id).join());
 watch(
-  () => [props.day.date, catalog.skills.length],
-  () => (shownIds.value = recentSkillIds(catalog.skills, props.day.skills)),
+  () => [props.day.date, catalog.skills.length, starredKey.value],
+  () => (shownIds.value = daySkillIds(catalog.skills, props.day.skills)),
   { immediate: true }
 );
 watch(
@@ -38,7 +39,7 @@ const usedToday = computed(() => Object.keys(props.day.skills).length);
   <section class="skills">
     <h2 class="section-title">
       Skills
-      <span class="muted small">{{ usedToday }} used today · Recent</span>
+      <span class="muted small">{{ usedToday }} used today</span>
     </h2>
     <div class="card rows">
       <SkillCheckRow
@@ -48,7 +49,9 @@ const usedToday = computed(() => Object.keys(props.day.skills).length);
         :checked="!!day.skills[s.id]"
         @toggle="emit('toggle', s, $event)"
       />
-      <p v-if="!shown.length" class="muted small none">No skills set up. Add them in Settings.</p>
+      <p v-if="!shown.length" class="muted small none">
+        No skills here yet. Star the ones you use in <RouterLink to="/settings">Settings</RouterLink>, or browse them all.
+      </p>
       <button class="browse" type="button" @click="browsing = true">Browse all skills</button>
     </div>
 

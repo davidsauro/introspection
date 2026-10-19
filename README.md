@@ -6,7 +6,7 @@ A private, self-hosted daily diary card for one person. It's modelled on the dai
 - record whether you **acted on** each urge
 - mark each **medication** as taken (Yes/No)
 - add a **note under each emotion and urge**
-- tick the **DBT skills** used (32 built in, with search and module filters)
+- tick the **DBT skills** used (32 built in, with search and module filters). Star skills in Settings to keep them on the Day screen
 - write free-text **notes**
 
 The Day screen also shows a **day streak**, **skills used** and **total entries**.

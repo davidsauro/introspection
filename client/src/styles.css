@@ -12,6 +12,7 @@
   --yes: #4f7c78;
   --no: #8a8f97;
   --danger: #b3412f;
+  --star: #c58a12;
   --focus: #2f6fdb;
   --radius: 14px;
   --radius-sm: 10px;
@@ -37,6 +38,7 @@
     --yes: #7fb3ad;
     --no: #8a8f97;
     --danger: #ec7b67;
+    --star: #f0bd4f;
     --focus: #7aa7ff;
     --shadow: none;
   }

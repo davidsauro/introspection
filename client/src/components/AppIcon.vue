@@ -1,5 +1,9 @@
 <script setup>
-defineProps({ name: { type: String, required: true }, size: { type: Number, default: 22 } });
+defineProps({
+  name: { type: String, required: true },
+  size: { type: Number, default: 22 },
+  filled: { type: Boolean, default: false },
+});
 
 const paths = {
   day: 'M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z M9 14l2 2 4-4',
@@ -17,6 +21,7 @@ const paths = {
   plus: 'M12 5v14M5 12h14',
   archive: 'M3 4h18v4H3zM5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4',
   restore: 'M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5',
+  star: 'M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9Z',
 };
 </script>
 
@@ -25,7 +30,7 @@ const paths = {
     :width="size"
     :height="size"
     viewBox="0 0 24 24"
-    fill="none"
+    :fill="filled ? 'currentColor' : 'none'"
     stroke="currentColor"
     stroke-width="1.8"
     stroke-linecap="round"

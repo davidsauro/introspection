@@ -6,12 +6,15 @@ import { vAutogrow } from '../utils/autogrow.js';
 import AppIcon from './AppIcon.vue';
 
 // Settings → Skills: grouped by module (each group collapsible), with add, edit, reorder,
-// move between modules, archive and restore.
+// move between modules, star (show on the Day screen), archive and restore.
 const catalog = useCatalogStore();
 const error = ref('');
 
 const groups = computed(() =>
-  MODULES.map((m) => ({ ...m, skills: catalog.skills.filter((s) => s.module === m.key && !s.archived) }))
+  MODULES.map((m) => {
+    const skills = catalog.skills.filter((s) => s.module === m.key && !s.archived);
+    return { ...m, skills, starred: skills.filter((s) => s.starred).length };
+  })
 );
 const archived = computed(() => catalog.skills.filter((s) => s.archived));
 const showArchived = ref(false);
@@ -59,6 +62,7 @@ function add() {
     <details v-for="g in groups" :key="g.key" class="card group">
       <summary>
         <span class="title">{{ g.label }}</span>
+        <span v-if="g.starred" class="muted small starred-count"><AppIcon name="star" :size="14" filled /> {{ g.starred }}</span>
         <span class="muted small">{{ g.skills.length }} {{ g.skills.length === 1 ? 'skill' : 'skills' }}</span>
       </summary>
       <ul class="list">
@@ -95,6 +99,17 @@ function add() {
               </select>
             </label>
           </div>
+          <button
+            class="btn icon ghost star"
+            :class="{ on: s.starred }"
+            type="button"
+            :aria-pressed="s.starred"
+            :aria-label="`Show ${s.name} on the Day screen`"
+            :title="s.starred ? 'Shown on the Day screen' : 'Show on the Day screen'"
+            @click="update(s, { starred: !s.starred })"
+          >
+            <AppIcon name="star" :size="20" :filled="s.starred" />
+          </button>
           <button class="btn icon ghost" type="button" :aria-label="`Archive ${s.name}`" title="Archive" @click="update(s, { archived: true })">
             <AppIcon name="archive" :size="18" />
           </button>
@@ -196,6 +211,21 @@ details[open] summary::after {
 
 .item + .item {
   border-top: 1px solid var(--border);
+}
+
+.starred-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--star);
+}
+
+.star {
+  color: var(--muted);
+}
+
+.star.on {
+  color: var(--star);
 }
 
 .order {

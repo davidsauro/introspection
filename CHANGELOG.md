@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.4.0 — 2026-10-19
+
+### Starred skills replace the Recent list
+- **Settings → Skills:** a star next to each skill. Starred skills appear on the Day screen. Each module's header shows how many are starred.
+- **Day screen:** the Skills section shows her starred skills in module order, plus anything ticked that day (from Browse, or since archived) so she can always see and untick it. With nothing starred, it points her to Settings.
+- **Browse all skills:** the same star on the left of each row, away from the tick box, so she can star skills straight from the Day screen. Starred skills join the Day list straight away.
+- **No built-in defaults:** the 13 starter skills are gone, and nothing is starred until she chooses.
+
+### Under the hood
+- **Migration v4** renames `skills.starter` to `starred` and clears it, so existing diaries start with no starred skills. Ticks and history are untouched.
+- **API:** skills have `starred`, which `PATCH /api/skills/:id` accepts. `lastUsed` is removed, since only the Recent list used it.
+- **Tests:** 49 server (starring, upgrade from v3) and 61 client (Day-screen skill rules).
+
 ## 1.3.0 — 2026-10-17
 
 ### DBT skills

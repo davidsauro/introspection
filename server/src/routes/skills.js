@@ -12,16 +12,15 @@ const toApi = (row) => ({
   module: row.module,
   name: row.name,
   description: row.description,
-  starter: !!row.starter,
+  starred: !!row.starred, // shown on the Day screen
   sortOrder: row.sort_order,
   archived: !!row.archived_at,
-  lastUsed: row.last_used ?? null, // most recent date she ticked it, for the "Recent" list
 });
 
 // Modules in DBT's usual order (mindfulness first), not alphabetical.
 const MODULE_ORDER = `CASE s.module ${MODULES.map((m, i) => `WHEN '${m}' THEN ${i}`).join(' ')} END`;
 
-const SELECT = `SELECT s.*, (SELECT MAX(date) FROM skill_log l WHERE l.skill_id = s.id) AS last_used FROM skills s`;
+const SELECT = 'SELECT s.* FROM skills s';
 
 function getSkill(id) {
   const row = db.prepare(`${SELECT} WHERE s.id = ?`).get(id);
@@ -77,15 +76,17 @@ skillsRouter.patch('/:id', (req, res) => {
     module = b.module;
     sortOrder = db.prepare('SELECT COALESCE(MAX(sort_order), -1) + 1 AS n FROM skills WHERE module = ?').get(module).n;
   }
+  const starred = b.starred !== undefined ? (assertBool(b.starred, 'starred') ? 1 : 0) : row.starred;
   let archivedAt = row.archived_at;
   if (b.archived !== undefined) {
     archivedAt = assertBool(b.archived, 'archived') ? (row.archived_at ?? new Date().toISOString()) : null;
   }
-  db.prepare('UPDATE skills SET name = ?, description = ?, module = ?, sort_order = ?, archived_at = ? WHERE id = ?').run(
+  db.prepare('UPDATE skills SET name = ?, description = ?, module = ?, sort_order = ?, starred = ?, archived_at = ? WHERE id = ?').run(
     name,
     description,
     module,
     sortOrder,
+    starred,
     archivedAt,
     row.id
   );

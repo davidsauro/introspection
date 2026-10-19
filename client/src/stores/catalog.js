@@ -25,18 +25,15 @@ export const useCatalogStore = defineStore('catalog', {
   actions: {
     async load(force = false) {
       if (this.loaded && !force) return;
-      const [trackers, medications] = await Promise.all([
+      const [trackers, medications, skills] = await Promise.all([
         api.get('/trackers?includeArchived=true'),
         api.get('/medications?includeArchived=true'),
-        this.refreshSkills(),
+        api.get('/skills?includeArchived=true'),
       ]);
       this.trackers = trackers.sort((a, b) => a.sortOrder - b.sortOrder);
       this.medications = medications.sort((a, b) => a.sortOrder - b.sortOrder);
+      this.skills = skills.sort(compareSkills);
       this.loaded = true;
-    },
-    // Skills carry lastUsed (for the Recent list), which changes as she ticks them.
-    async refreshSkills() {
-      this.skills = (await api.get('/skills?includeArchived=true')).sort(compareSkills);
     },
     async addTracker(data) {
       this.trackers.push(await api.post('/trackers', data));

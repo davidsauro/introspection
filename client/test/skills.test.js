@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { recentSkillIds, filterSkills, compareSkills, RECENT_COUNT } from '../src/utils/skills.js';
+import { daySkillIds, filterSkills, compareSkills } from '../src/utils/skills.js';
 
 let nextId = 1;
 const skill = (module, name, extra = {}) => ({
@@ -7,60 +7,51 @@ const skill = (module, name, extra = {}) => ({
   module,
   name,
   description: `${name} description`,
-  starter: false,
+  starred: false,
   sortOrder: nextId,
   archived: false,
-  lastUsed: null,
   ...extra,
 });
 
 // Deliberately out of module order, to check sorting.
 const skills = [
-  skill('interpersonal', 'DEAR MAN', { starter: true }),
-  skill('mindfulness', 'Wise Mind', { starter: true }),
-  skill('mindfulness', 'Observe', { starter: true }),
+  skill('interpersonal', 'DEAR MAN'),
+  skill('mindfulness', 'Wise Mind'),
+  skill('mindfulness', 'Observe'),
   skill('distress', 'TIPP'),
-  skill('distress', 'Self-soothe', { starter: true, description: 'Comfort through the five senses' }),
-  skill('emotion', 'Check the Facts', { starter: true }),
-  skill('emotion', 'Opposite Action', { starter: true }),
+  skill('distress', 'Self-soothe', { description: 'Comfort through the five senses' }),
+  skill('emotion', 'Check the Facts'),
+  skill('emotion', 'Opposite Action'),
   skill('emotion', 'Cope Ahead'),
-  skill('interpersonal', 'GIVE', { starter: true }),
-  skill('distress', 'Old skill', { archived: true, starter: true, lastUsed: '2026-03-09' }),
+  skill('interpersonal', 'GIVE'),
+  skill('distress', 'Old skill', { archived: true }),
 ];
 const id = (name) => skills.find((s) => s.name === name).id;
 const names = (ids) => ids.map((i) => skills.find((s) => s.id === i).name);
+const starring = (...starred) => skills.map((s) => ({ ...s, starred: starred.includes(s.name) }));
 
-describe('recentSkillIds', () => {
-  it('with no history, shows the starter skills in module order', () => {
-    expect(names(recentSkillIds(skills))).toEqual(['Wise Mind', 'Observe', 'Self-soothe', 'Check the Facts', 'Opposite Action', 'DEAR MAN']);
+describe('daySkillIds', () => {
+  it('shows nothing until she stars some skills', () => {
+    expect(daySkillIds(skills)).toEqual([]);
   });
 
-  it('puts the most recently used first, then tops up with starters', () => {
-    const withHistory = skills.map((s) =>
-      s.name === 'TIPP' ? { ...s, lastUsed: '2026-03-08' } : s.name === 'Cope Ahead' ? { ...s, lastUsed: '2026-03-05' } : s
-    );
-    expect(names(recentSkillIds(withHistory))).toEqual(['TIPP', 'Cope Ahead', 'Wise Mind', 'Observe', 'Self-soothe', 'Check the Facts']);
+  it('shows her starred skills in module order', () => {
+    expect(names(daySkillIds(starring('GIVE', 'TIPP', 'Wise Mind', 'DEAR MAN')))).toEqual(['Wise Mind', 'TIPP', 'DEAR MAN', 'GIVE']);
   });
 
-  it("puts the day's ticks first and always shows all of them", () => {
-    const ticked = Object.fromEntries(['GIVE', 'TIPP', 'Cope Ahead', 'Observe', 'Wise Mind', 'DEAR MAN', 'Self-soothe'].map((n) => [id(n), true]));
-    const ids = recentSkillIds(skills, ticked);
-    expect(ids.length).toBe(7); // more than RECENT_COUNT because 7 are ticked
-    expect(names(ids)).toEqual(['Wise Mind', 'Observe', 'TIPP', 'Self-soothe', 'Cope Ahead', 'DEAR MAN', 'GIVE']);
+  it("adds the day's ticks, in module order with the starred ones", () => {
+    const ticked = { [id('Cope Ahead')]: true, [id('Observe')]: true, [id('GIVE')]: true };
+    expect(names(daySkillIds(starring('GIVE', 'TIPP'), ticked))).toEqual(['Observe', 'TIPP', 'Cope Ahead', 'GIVE']);
   });
 
-  it('never suggests archived skills, but shows one if it was ticked that day', () => {
-    expect(names(recentSkillIds(skills))).not.toContain('Old skill');
-    expect(names(recentSkillIds(skills, { [id('Old skill')]: true }))[0]).toBe('Old skill');
+  it('hides an archived skill even if starred, but shows one if it was ticked that day', () => {
+    const starred = starring(...skills.map((s) => s.name));
+    expect(names(daySkillIds(starred))).not.toContain('Old skill');
+    expect(names(daySkillIds(starred, { [id('Old skill')]: true }))).toContain('Old skill');
   });
 
-  it('shows RECENT_COUNT skills when there are enough', () => {
-    expect(recentSkillIds(skills)).toHaveLength(RECENT_COUNT);
-  });
-
-  it('copes with fewer skills than RECENT_COUNT', () => {
-    expect(recentSkillIds(skills.slice(0, 2))).toHaveLength(2);
-    expect(recentSkillIds([])).toEqual([]);
+  it('copes with no skills', () => {
+    expect(daySkillIds([])).toEqual([]);
   });
 });
 

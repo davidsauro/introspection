@@ -29,9 +29,9 @@ test('a diary from before skills existed (v2) upgrades without losing anything',
 
     openWithApp(dbPath);
     db = new Database(dbPath, { readonly: true });
-    assert.equal(db.pragma('user_version', { simple: true }), 3);
+    assert.equal(db.pragma('user_version', { simple: true }), 4);
     assert.equal(db.prepare('SELECT COUNT(*) AS n FROM skills').get().n, 32);
-    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM skills WHERE starter = 1').get().n, 13);
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM skills WHERE starred = 1').get().n, 0);
     assert.equal(db.prepare('SELECT value FROM ratings').get().value, 3);
     assert.equal(db.prepare('SELECT note FROM tracker_notes').get().note, 'kept');
     assert.equal(db.prepare('SELECT name FROM trackers WHERE id = 1').get().name, 'Renamed');
@@ -42,6 +42,32 @@ test('a diary from before skills existed (v2) upgrades without losing anything',
     openWithApp(dbPath);
     db = new Database(dbPath, { readonly: true });
     assert.equal(db.prepare('SELECT COUNT(*) AS n FROM skills').get().n, 32);
+    db.close();
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a v3 diary loses its built-in starter skills but keeps its ticks', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'diary-migrate-'));
+  const dbPath = path.join(dir, 'diary.db');
+  try {
+    // Make a current database, then turn it back into a v3 one with starters and a tick.
+    openWithApp(dbPath);
+    let db = new Database(dbPath);
+    db.exec(`
+      ALTER TABLE skills RENAME COLUMN starred TO starter;
+      UPDATE skills SET starter = 1 WHERE name IN ('Wise Mind', 'Observe', 'GIVE');
+      INSERT INTO skill_log (date, skill_id) SELECT '2026-01-01', id FROM skills WHERE name = 'Wise Mind';
+      PRAGMA user_version = 3;
+    `);
+    db.close();
+
+    openWithApp(dbPath);
+    db = new Database(dbPath, { readonly: true });
+    assert.equal(db.pragma('user_version', { simple: true }), 4);
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM skills WHERE starred = 1').get().n, 0);
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM skill_log').get().n, 1);
     db.close();
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });

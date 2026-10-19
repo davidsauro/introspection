@@ -1,10 +1,12 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
+import { useCatalogStore } from '../stores/catalog.js';
 import { MODULES, filterSkills } from '../utils/skills.js';
 import SkillCheckRow from './SkillCheckRow.vue';
 
-// "Browse all skills": every skill with search and module filters. Full screen on a phone,
-// a centred dialog on iPad and Mac. Uses <dialog> for focus trapping and Esc to close.
+// "Browse all skills": every skill with search and module filters, and a star to keep a skill
+// on the Day screen. Full screen on a phone, a centred dialog on iPad and Mac. Uses <dialog>
+// for focus trapping and Esc to close.
 const props = defineProps({
   open: { type: Boolean, default: false },
   skills: { type: Array, required: true }, // active skills
@@ -12,9 +14,20 @@ const props = defineProps({
 });
 const emit = defineEmits(['close', 'toggle']);
 
+const catalog = useCatalogStore();
 const dialog = ref(null);
 const query = ref('');
 const module = ref(null);
+const error = ref('');
+
+async function star(skill, starred) {
+  error.value = '';
+  try {
+    await catalog.updateSkill(skill.id, { starred });
+  } catch (e) {
+    error.value = e.message;
+  }
+}
 
 watch(
   () => props.open,
@@ -22,6 +35,7 @@ watch(
     if (open) {
       query.value = '';
       module.value = null;
+      error.value = '';
       dialog.value?.showModal();
     } else if (dialog.value?.open) {
       dialog.value.close();
@@ -60,6 +74,8 @@ const usedCount = computed(() => props.skills.filter((s) => props.ticked[s.id]).
           {{ m.label }}
         </button>
       </div>
+      <p class="muted small hint">Star a skill to keep it on the Day screen.</p>
+      <p v-if="error" class="error-text" role="alert">{{ error }}</p>
     </div>
 
     <div class="list">
@@ -74,7 +90,9 @@ const usedCount = computed(() => props.skills.filter((s) => props.ticked[s.id]).
             :key="s.id"
             :skill="s"
             :checked="!!ticked[s.id]"
+            starrable
             @toggle="emit('toggle', s, $event)"
+            @star="star(s, $event)"
           />
         </div>
       </section>
@@ -122,6 +140,11 @@ const usedCount = computed(() => props.skills.filter((s) => props.ticked[s.id]).
   gap: 10px;
   padding: 4px 16px 10px;
   border-bottom: 1px solid var(--border);
+}
+
+.hint,
+.controls .error-text {
+  margin: 0;
 }
 
 .search {
