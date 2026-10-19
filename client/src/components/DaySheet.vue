@@ -124,13 +124,6 @@ const visible = computed(() => visibleForDay(catalog, props.day));
     grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
     align-items: start;
   }
-  .side {
-    position: sticky;
-    top: 16px;
-    /* Long notes mustn't grow the pane past the viewport: scroll it instead of spilling over the skills below. */
-    max-height: calc(100vh - 32px);
-    overflow-y: auto;
-  }
   .skills-row {
     grid-column: 1 / -1;
   }
