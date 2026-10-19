@@ -127,6 +127,9 @@ const visible = computed(() => visibleForDay(catalog, props.day));
   .side {
     position: sticky;
     top: 16px;
+    /* Long notes mustn't grow the pane past the viewport: scroll it instead of spilling over the skills below. */
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
   }
   .skills-row {
     grid-column: 1 / -1;
