@@ -108,6 +108,7 @@ onBeforeRouteLeave(() => store.flush());
       @tracker-note="store.setTrackerNote"
       @skill="store.setSkill"
       @period="store.setPeriod"
+      @sleep="store.setSleep"
     />
   </div>
 </template>

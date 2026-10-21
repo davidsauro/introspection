@@ -12,6 +12,7 @@ const ENTRY_DATES = `
   UNION SELECT date FROM tracker_notes
   UNION SELECT date FROM skill_log
   UNION SELECT date FROM period_log
+  UNION SELECT date FROM sleep_log
   UNION SELECT date FROM days WHERE TRIM(COALESCE(notes, '')) != ''
 `;
 

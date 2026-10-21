@@ -46,14 +46,15 @@ test('every kind of entry counts, but cleared days and blank notes do not', asyn
   await c.put('/api/days/2026-04-03', { trackerNotes: [{ trackerId: tracker.id, note: 'card note' }] });
   await c.put('/api/days/2026-04-04', { skills: [{ skillId: skills[0].id, used: true }] });
   await c.put('/api/days/2026-04-05', { period: { flow: 'light' } });
-  assert.equal((await stats('2026-04-05')).streak, 5);
+  await c.put('/api/days/2026-04-06', { sleep: { hours: 7.5 } });
+  assert.equal((await stats('2026-04-06')).streak, 6);
 
   // A day that was filled in and then completely cleared.
-  await rate('2026-04-06');
-  await c.put('/api/days/2026-04-06', { ratings: [{ trackerId: tracker.id, value: null }], notes: '   ' });
-  const s = await stats('2026-04-06');
-  assert.equal(s.streak, 5); // 04-06 doesn't count, so the run ends at 04-05 (yesterday)
-  assert.equal(s.totalEntries, 10); // 5 from the previous test + 5 here
+  await rate('2026-04-07');
+  await c.put('/api/days/2026-04-07', { ratings: [{ trackerId: tracker.id, value: null }], notes: '   ' });
+  const s = await stats('2026-04-07');
+  assert.equal(s.streak, 6); // 04-07 doesn't count, so the run ends at 04-06 (yesterday)
+  assert.equal(s.totalEntries, 11); // 5 from the previous test + 6 here
 });
 
 test('skillsUsed counts every tick, all time', async () => {

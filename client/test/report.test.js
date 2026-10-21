@@ -47,6 +47,7 @@ const raw = [
     medications: [{ medicationId: 1, taken: false }],
     skills: [2],
     period: { flow: 'heavy' },
+    sleep: { hours: 6.5, fellAsleepQuickly: true, stayedAsleep: false },
   },
   // A day that exists in the database but has had everything cleared.
   { date: '2026-03-04', notes: '  ', ratings: [], medications: [] },
@@ -108,6 +109,11 @@ describe('buildReport', () => {
     expect(report.period).toEqual([null, null, { flow: 'heavy' }, null]);
   });
 
+  it('lists sleep per night and averages the hours entered', () => {
+    expect(report.sleep.nights).toEqual([null, null, { hours: 6.5, fellAsleepQuickly: true, stayedAsleep: false }, null]);
+    expect([report.sleep.average, report.sleep.nightsWithHours]).toEqual([6.5, 1]);
+  });
+
   it('handles a range with no data at all', () => {
     const empty = buildReport(catalog, [], dateRange('2026-04-01', '2026-04-03'));
     expect(empty.daysWithEntries).toBe(0);
@@ -115,6 +121,7 @@ describe('buildReport', () => {
     expect([s.average, s.max, s.daysRated]).toEqual([null, null, 0]);
     expect([empty.skills, empty.skillTicks]).toEqual([[], 0]);
     expect(empty.period).toEqual([null, null, null]);
+    expect([empty.sleep.average, empty.sleep.nightsWithHours]).toEqual([null, 0]);
   });
 });
 

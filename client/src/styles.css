@@ -15,6 +15,7 @@
   --star: #c58a12;
   --period: #c23a3a;
   --period-contrast: #ffffff;
+  --sleep: #5a6bb0;
   --focus: #2f6fdb;
   --radius: 14px;
   --radius-sm: 10px;
@@ -43,6 +44,7 @@
     --star: #f0bd4f;
     --period: #ef6f6f;
     --period-contrast: #2a0d0d;
+    --sleep: #95a5e6;
     --focus: #7aa7ff;
     --shadow: none;
   }

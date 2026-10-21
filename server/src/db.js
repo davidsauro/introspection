@@ -126,6 +126,15 @@ const migrations = [
     flow TEXT CHECK (flow IN ('light', 'medium', 'heavy'))
   );
   `,
+  // v6: sleep, one row per night. Hours are optional; the two checkboxes default to unticked.
+  `
+  CREATE TABLE sleep_log (
+    date TEXT PRIMARY KEY,
+    hours REAL CHECK (hours BETWEEN 0 AND 24),
+    fell_asleep_quickly INTEGER NOT NULL DEFAULT 0,
+    stayed_asleep INTEGER NOT NULL DEFAULT 0
+  );
+  `,
 ];
 
 function migrate() {

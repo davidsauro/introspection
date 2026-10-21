@@ -2,6 +2,7 @@
 import TrendChart from './TrendChart.vue';
 import MedicationChart from './MedicationChart.vue';
 import PeriodCalendar from './PeriodCalendar.vue';
+import SleepChart from './SleepChart.vue';
 import { formatNumber } from '../utils/report.js';
 
 defineProps({
@@ -54,6 +55,11 @@ defineProps({
     <section>
       <h2 class="section-title">Period</h2>
       <PeriodCalendar :report="report" />
+    </section>
+
+    <section>
+      <h2 class="section-title">Sleep</h2>
+      <SleepChart :sleep="report.sleep" :dates="report.dates" />
     </section>
 
     <section v-if="report.medications.length">

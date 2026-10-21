@@ -15,6 +15,7 @@ export function normalizeDay(raw) {
     trackerNotes: Object.fromEntries((raw.trackerNotes ?? []).map((n) => [n.trackerId, n.note])),
     skills: Object.fromEntries((raw.skills ?? []).map((id) => [id, true])),
     period: raw.period ?? null, // null, or { flow: 'light' | 'medium' | 'heavy' | null }
+    sleep: raw.sleep ?? null, // null, or { hours: number | null, fellAsleepQuickly, stayedAsleep }
   };
 }
 
@@ -26,7 +27,8 @@ export function isEmptyDay(day) {
       !Object.keys(day.medications).length &&
       !Object.values(day.trackerNotes ?? {}).some((n) => n.trim()) &&
       !Object.keys(day.skills ?? {}).length &&
-      !day.period)
+      !day.period &&
+      !day.sleep)
   );
 }
 
@@ -37,7 +39,7 @@ const pendingByDate = new Map();
 
 function pendingFor(date) {
   if (!pendingByDate.has(date)) {
-    pendingByDate.set(date, { notes: undefined, period: undefined, ratings: new Map(), medications: new Map(), trackerNotes: new Map(), skills: new Map() });
+    pendingByDate.set(date, { notes: undefined, period: undefined, sleep: undefined, ratings: new Map(), medications: new Map(), trackerNotes: new Map(), skills: new Map() });
   }
   return pendingByDate.get(date);
 }
@@ -110,6 +112,14 @@ export const useDayStore = defineStore('day', {
       this.schedule();
     },
 
+    // The whole night at once; nothing entered or ticked is saved as no sleep entry.
+    setSleep(sleep) {
+      const empty = sleep.hours === null && !sleep.fellAsleepQuickly && !sleep.stayedAsleep;
+      this.day.sleep = empty ? null : sleep;
+      pendingFor(this.date).sleep = this.day.sleep;
+      this.schedule();
+    },
+
     setSkill(skill, used) {
       if (used) this.day.skills[skill.id] = true;
       else delete this.day.skills[skill.id];
@@ -155,6 +165,7 @@ export const useDayStore = defineStore('day', {
           const body = {
             ...(p.notes !== undefined && { notes: p.notes }),
             ...(p.period !== undefined && { period: p.period }),
+            ...(p.sleep !== undefined && { sleep: p.sleep }),
             ratings: [...p.ratings.values()],
             medications: [...p.medications.values()],
             trackerNotes: [...p.trackerNotes.values()],
@@ -168,6 +179,7 @@ export const useDayStore = defineStore('day', {
             const again = pendingFor(date);
             if (p.notes !== undefined && again.notes === undefined) again.notes = p.notes;
             if (p.period !== undefined && again.period === undefined) again.period = p.period;
+            if (p.sleep !== undefined && again.sleep === undefined) again.sleep = p.sleep;
             for (const [k, v] of p.ratings) if (!again.ratings.has(k)) again.ratings.set(k, v);
             for (const [k, v] of p.medications) if (!again.medications.has(k)) again.medications.set(k, v);
             for (const [k, v] of p.trackerNotes) if (!again.trackerNotes.has(k)) again.trackerNotes.set(k, v);

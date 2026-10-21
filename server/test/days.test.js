@@ -22,7 +22,7 @@ const rating = (day, id) => day.ratings.find((r) => r.trackerId === id);
 test('a day with nothing saved comes back empty', async () => {
   const { status, data } = await c.get('/api/days/2026-03-01');
   assert.equal(status, 200);
-  assert.deepEqual(data, { date: '2026-03-01', notes: '', ratings: [], medications: [], trackerNotes: [], skills: [], period: null });
+  assert.deepEqual(data, { date: '2026-03-01', notes: '', ratings: [], medications: [], trackerNotes: [], skills: [], period: null, sleep: null });
 });
 
 test('dates are validated', async () => {
@@ -247,4 +247,29 @@ test('period payloads are validated', async () => {
     assert.equal((await c.put('/api/days/2026-04-05', { period })).status, 400, JSON.stringify(period));
   }
   assert.equal((await c.get('/api/days/2026-04-05')).data.period, null);
+});
+
+test('sleep: hours and checkboxes saved, replaced, and cleared', async () => {
+  let day = (await c.put('/api/days/2026-05-01', { sleep: { hours: 8.2, fellAsleepQuickly: true } })).data;
+  assert.deepEqual(day.sleep, { hours: 8.2, fellAsleepQuickly: true, stayedAsleep: false });
+
+  day = (await c.put('/api/days/2026-05-01', { sleep: { hours: null, stayedAsleep: true } })).data;
+  assert.deepEqual(day.sleep, { hours: null, fellAsleepQuickly: false, stayedAsleep: true });
+
+  await c.put('/api/days/2026-05-01', { notes: 'unrelated' }); // omitting sleep leaves it alone
+  assert.equal((await c.get('/api/days/2026-05-01')).data.sleep.stayedAsleep, true);
+
+  // Nothing left to record is the same as no sleep entry.
+  day = (await c.put('/api/days/2026-05-01', { sleep: { hours: null, fellAsleepQuickly: false, stayedAsleep: false } })).data;
+  assert.equal(day.sleep, null);
+  await c.put('/api/days/2026-05-01', { sleep: { hours: 0 } });
+  day = (await c.put('/api/days/2026-05-01', { sleep: null })).data;
+  assert.equal(day.sleep, null);
+});
+
+test('sleep payloads are validated', async () => {
+  for (const sleep of [8, { hours: -1 }, { hours: 24.5 }, { hours: '8' }, { hours: 7, stayedAsleep: 'yes' }]) {
+    assert.equal((await c.put('/api/days/2026-05-02', { sleep })).status, 400, JSON.stringify(sleep));
+  }
+  assert.equal((await c.put('/api/days/2026-05-02', { sleep: { hours: 24 } })).status, 200);
 });

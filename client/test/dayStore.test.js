@@ -41,6 +41,7 @@ describe('normalizeDay / isEmptyDay', () => {
       trackerNotes: {},
       skills: {},
       period: null,
+      sleep: null,
     });
     expect(isEmptyDay(d)).toBe(false);
   });
@@ -151,6 +152,20 @@ describe('autosave', () => {
     expect(api.put.mock.calls[1][1].period).toBeNull();
 
     expect(isEmptyDay(normalizeDay({ ...emptyRaw('2026-03-01'), period: { flow: null } }))).toBe(false);
+  });
+
+  it('saves sleep as a whole night, and nothing entered as null', async () => {
+    store.setSleep({ hours: 7.5, fellAsleepQuickly: false, stayedAsleep: true });
+    expect(store.day.sleep).toEqual({ hours: 7.5, fellAsleepQuickly: false, stayedAsleep: true });
+    await store.flush();
+    expect(api.put.mock.calls[0][1].sleep).toEqual({ hours: 7.5, fellAsleepQuickly: false, stayedAsleep: true });
+
+    store.setSleep({ hours: null, fellAsleepQuickly: false, stayedAsleep: false });
+    expect(store.day.sleep).toBeNull();
+    await store.flush();
+    expect(api.put.mock.calls[1][1].sleep).toBeNull();
+
+    expect(isEmptyDay(normalizeDay({ ...emptyRaw('2026-03-01'), sleep: { hours: null, fellAsleepQuickly: true, stayedAsleep: false } }))).toBe(false);
   });
 
   it('clearing a rating sends null, and acted-on needs a rating first', async () => {

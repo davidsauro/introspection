@@ -2,21 +2,25 @@
 import { computed } from 'vue';
 import { useCatalogStore } from '../stores/catalog.js';
 import { visibleForDay } from '../utils/report.js';
+import { addDays, formatMedium } from '../utils/dates.js';
 import { vAutogrow } from '../utils/autogrow.js';
 import TrackerCard from './TrackerCard.vue';
 import MedicationList from './MedicationList.vue';
 import SkillsSection from './SkillsSection.vue';
 import PeriodCard from './PeriodCard.vue';
+import SleepCard from './SleepCard.vue';
 
 // One day laid out as the diary card on the Day screen. The PDF (src/pdf/document.js)
 // shows the same items via visibleForDay().
 const props = defineProps({
   day: { type: Object, required: true }, // normalized day (see stores/day.js)
 });
-const emit = defineEmits(['rate', 'acted', 'medication', 'notes', 'tracker-note', 'skill', 'period']);
+const emit = defineEmits(['rate', 'acted', 'medication', 'notes', 'tracker-note', 'skill', 'period', 'sleep']);
 
 const catalog = useCatalogStore();
 const visible = computed(() => visibleForDay(catalog, props.day));
+// A day's sleep entry is about the night before it.
+const lastNight = computed(() => formatMedium(addDays(props.day.date, -1)));
 </script>
 
 <template>
@@ -59,6 +63,14 @@ const visible = computed(() => visibleForDay(catalog, props.day));
         <section>
           <h2 class="section-title">Period</h2>
           <PeriodCard :period="day.period" @set="emit('period', $event)" />
+        </section>
+
+        <section>
+          <h2 class="section-title">
+            Sleep
+            <span class="muted small">Last night · {{ lastNight }}</span>
+          </h2>
+          <SleepCard :sleep="day.sleep" @set="emit('sleep', $event)" />
         </section>
       </div>
 
@@ -117,6 +129,10 @@ const visible = computed(() => visibleForDay(catalog, props.day));
 
 .empty {
   margin: 0;
+}
+
+.section-title .small {
+  font-weight: 400;
 }
 
 .notes textarea {

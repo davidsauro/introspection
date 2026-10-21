@@ -1,7 +1,8 @@
 <script setup>
 import { formatWeekday } from '../utils/dates.js';
+import { formatNumber } from '../utils/report.js';
 
-// Tracker × date heatmap with a period row, and a medication row per medication.
+// Tracker × date heatmap with period and sleep rows, and a medication row per medication.
 defineProps({
   report: { type: Object, required: true }, // from buildReport()
 });
@@ -18,6 +19,9 @@ function cellStyle(point, kind) {
 }
 
 const dayNum = (d) => Number(d.slice(8));
+
+// A sleep checkbox for one night: ticked, unticked on a night with a sleep entry, or no entry.
+const sleepMark = (night, key) => (!night ? '' : night[key] ? '✓' : '✗');
 </script>
 
 <template>
@@ -58,6 +62,25 @@ const dayNum = (d) => Number(d.slice(8));
           <th class="name" scope="row">Bleeding</th>
           <td v-for="(p, i) in report.period" :key="i" class="cell period">
             <span v-if="p" class="bleed" title="Bleeding" aria-label="bleeding" />
+          </td>
+        </tr>
+
+        <tr class="section">
+          <th :colspan="report.dates.length + 1" scope="colgroup">Sleep <span class="note">(the night before)</span></th>
+        </tr>
+        <tr>
+          <th class="name" scope="row">Hours slept</th>
+          <td v-for="(n, i) in report.sleep.nights" :key="i" class="cell sleep" :class="{ has: n?.hours != null }">
+            {{ n?.hours != null ? formatNumber(n.hours) : '' }}
+          </td>
+        </tr>
+        <tr v-for="row in [
+          { key: 'fellAsleepQuickly', label: 'Fell asleep quickly' },
+          { key: 'stayedAsleep', label: 'Stayed asleep' },
+        ]" :key="row.key">
+          <th class="name" scope="row" :title="row.label">{{ row.label }}</th>
+          <td v-for="(n, i) in report.sleep.nights" :key="i" class="cell sleep-check" :class="{ yes: n?.[row.key] }">
+            {{ sleepMark(n, row.key) }}
           </td>
         </tr>
 
@@ -201,6 +224,24 @@ td {
   margin: auto;
   border-radius: 3px;
   background: var(--period);
+}
+
+.section .note {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+
+.sleep.has {
+  background: color-mix(in srgb, var(--sleep) 20%, var(--surface));
+}
+
+.sleep-check {
+  color: var(--muted);
+}
+
+.sleep-check.yes {
+  color: var(--sleep);
 }
 
 .skill.used {

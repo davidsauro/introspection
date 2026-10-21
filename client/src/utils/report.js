@@ -58,12 +58,24 @@ export function buildReport(catalog, rawDays, dates) {
     days,
     // Per date: null, or { flow } when she marked bleeding that day.
     period: dates.map((date) => days[date]?.period ?? null),
+    sleep: sleepStats(dates.map((date) => days[date]?.sleep ?? null)),
     emotions: emotions.map(trackerStats),
     urges: urges.map(trackerStats),
     medications: medications.map(medStats),
     skills,
     skillTicks: skills.reduce((n, s) => n + s.days, 0),
     daysWithEntries: dates.filter((d) => days[d]).length,
+  };
+}
+
+// Per date: null or { hours, fellAsleepQuickly, stayedAsleep }, plus the average hours over
+// nights that have hours entered.
+function sleepStats(nights) {
+  const hours = nights.map((n) => n?.hours ?? null).filter((h) => h !== null);
+  return {
+    nights,
+    average: hours.length ? hours.reduce((s, h) => s + h, 0) / hours.length : null,
+    nightsWithHours: hours.length,
   };
 }
 

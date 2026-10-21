@@ -9,7 +9,7 @@ const MAX_NOTES = 20000;
 const MAX_TRACKER_NOTE = 5000;
 const FLOWS = ['light', 'medium', 'heavy'];
 
-const emptyDay = (date) => ({ date, notes: '', ratings: [], medications: [], trackerNotes: [], skills: [], period: null });
+const emptyDay = (date) => ({ date, notes: '', ratings: [], medications: [], trackerNotes: [], skills: [], period: null, sleep: null });
 
 // Loads days in [from, to] keyed by date. Only dates with something stored are included.
 export function loadDays(from, to) {
@@ -46,6 +46,15 @@ export function loadDays(from, to) {
   for (const r of db.prepare('SELECT date, flow FROM period_log WHERE date BETWEEN ? AND ?').all(from, to)) {
     ensure(r.date).period = { flow: r.flow };
   }
+  for (const r of db
+    .prepare('SELECT date, hours, fell_asleep_quickly, stayed_asleep FROM sleep_log WHERE date BETWEEN ? AND ?')
+    .all(from, to)) {
+    ensure(r.date).sleep = {
+      hours: r.hours,
+      fellAsleepQuickly: !!r.fell_asleep_quickly,
+      stayedAsleep: !!r.stayed_asleep,
+    };
+  }
   return [...days.values()].sort((a, b) => a.date.localeCompare(b.date));
 }
 
@@ -71,9 +80,11 @@ daysRouter.get('/:date', (req, res) => {
  *     medications?: [{ medicationId, taken: bool | null }],
  *     trackerNotes?: [{ trackerId, note: string | null }],
  *     skills?: [{ skillId, used: bool }],
- *     period?: { flow: 'light' | 'medium' | 'heavy' | null } | null }
+ *     period?: { flow: 'light' | 'medium' | 'heavy' | null } | null,
+ *     sleep?: { hours: number | null, fellAsleepQuickly?: bool, stayedAsleep?: bool } | null }
  * A null value/taken clears that entry; a null or blank note deletes it; a null period means
- * no bleeding that day.
+ * no bleeding that day. sleep replaces the whole night; null, or no hours and nothing ticked,
+ * clears it.
  *
  * scaleMax is the scale the value was chosen on. It may be the tracker's current scale, or the
  * scale an existing rating for this day was recorded on (so old entries can be edited in place
@@ -81,7 +92,7 @@ daysRouter.get('/:date', (req, res) => {
  */
 daysRouter.put('/:date', (req, res) => {
   const date = assertDate(req.params.date);
-  const { notes, ratings = [], medications = [], trackerNotes = [], skills = [], period } = req.body ?? {};
+  const { notes, ratings = [], medications = [], trackerNotes = [], skills = [], period, sleep } = req.body ?? {};
   if (notes !== undefined && (typeof notes !== 'string' || notes.length > MAX_NOTES)) {
     throw new HttpError(400, `notes must be a string of at most ${MAX_NOTES} characters`);
   }
@@ -109,6 +120,15 @@ daysRouter.put('/:date', (req, res) => {
     if (typeof period !== 'object' || !(period.flow == null || FLOWS.includes(period.flow))) {
       throw new HttpError(400, `period must be null or { flow: ${FLOWS.join(' | ')} | null }`);
     }
+  }
+  if (sleep !== undefined && sleep !== null) {
+    if (typeof sleep !== 'object') throw new HttpError(400, 'sleep must be an object or null');
+    const { hours } = sleep;
+    if (hours != null && (typeof hours !== 'number' || !Number.isFinite(hours) || hours < 0 || hours > 24)) {
+      throw new HttpError(400, 'sleep hours must be a number from 0 to 24, or null');
+    }
+    if (sleep.fellAsleepQuickly !== undefined) assertBool(sleep.fellAsleepQuickly, 'fellAsleepQuickly');
+    if (sleep.stayedAsleep !== undefined) assertBool(sleep.stayedAsleep, 'stayedAsleep');
   }
 
   const getTracker = db.prepare('SELECT id, scale_max FROM trackers WHERE id = ?');
@@ -183,6 +203,20 @@ daysRouter.put('/:date', (req, res) => {
       db.prepare(
         `INSERT INTO period_log (date, flow) VALUES (?, ?) ON CONFLICT(date) DO UPDATE SET flow = excluded.flow`
       ).run(date, period.flow ?? null);
+    }
+
+    if (sleep !== undefined) {
+      const hours = sleep?.hours ?? null;
+      const quick = sleep?.fellAsleepQuickly ? 1 : 0;
+      const stayed = sleep?.stayedAsleep ? 1 : 0;
+      if (hours === null && !quick && !stayed) db.prepare('DELETE FROM sleep_log WHERE date = ?').run(date);
+      else {
+        db.prepare(
+          `INSERT INTO sleep_log (date, hours, fell_asleep_quickly, stayed_asleep) VALUES (?, ?, ?, ?)
+           ON CONFLICT(date) DO UPDATE SET hours = excluded.hours,
+             fell_asleep_quickly = excluded.fell_asleep_quickly, stayed_asleep = excluded.stayed_asleep`
+        ).run(date, hours, quick, stayed);
+      }
     }
   })();
 
