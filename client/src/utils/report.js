@@ -56,6 +56,8 @@ export function buildReport(catalog, rawDays, dates) {
   return {
     dates,
     days,
+    // Per date: null, or { flow } when she marked bleeding that day.
+    period: dates.map((date) => days[date]?.period ?? null),
     emotions: emotions.map(trackerStats),
     urges: urges.map(trackerStats),
     medications: medications.map(medStats),

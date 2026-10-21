@@ -46,6 +46,7 @@ const raw = [
     ratings: [{ trackerId: 1, value: 5, scaleMax: 5, actedOn: null }, { trackerId: 4, value: 0, scaleMax: 5, actedOn: false }],
     medications: [{ medicationId: 1, taken: false }],
     skills: [2],
+    period: { flow: 'heavy' },
   },
   // A day that exists in the database but has had everything cleared.
   { date: '2026-03-04', notes: '  ', ratings: [], medications: [] },
@@ -103,12 +104,17 @@ describe('buildReport', () => {
     expect(report.skillTicks).toBe(4);
   });
 
+  it('lists period days per date, null where none was marked', () => {
+    expect(report.period).toEqual([null, null, { flow: 'heavy' }, null]);
+  });
+
   it('handles a range with no data at all', () => {
     const empty = buildReport(catalog, [], dateRange('2026-04-01', '2026-04-03'));
     expect(empty.daysWithEntries).toBe(0);
     const s = stat(empty.emotions, 1);
     expect([s.average, s.max, s.daysRated]).toEqual([null, null, 0]);
     expect([empty.skills, empty.skillTicks]).toEqual([[], 0]);
+    expect(empty.period).toEqual([null, null, null]);
   });
 });
 

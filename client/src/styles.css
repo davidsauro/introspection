@@ -13,6 +13,8 @@
   --no: #8a8f97;
   --danger: #b3412f;
   --star: #c58a12;
+  --period: #c23a3a;
+  --period-contrast: #ffffff;
   --focus: #2f6fdb;
   --radius: 14px;
   --radius-sm: 10px;
@@ -39,6 +41,8 @@
     --no: #8a8f97;
     --danger: #ec7b67;
     --star: #f0bd4f;
+    --period: #ef6f6f;
+    --period-contrast: #2a0d0d;
     --focus: #7aa7ff;
     --shadow: none;
   }

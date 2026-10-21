@@ -22,7 +22,7 @@ const rating = (day, id) => day.ratings.find((r) => r.trackerId === id);
 test('a day with nothing saved comes back empty', async () => {
   const { status, data } = await c.get('/api/days/2026-03-01');
   assert.equal(status, 200);
-  assert.deepEqual(data, { date: '2026-03-01', notes: '', ratings: [], medications: [], trackerNotes: [], skills: [] });
+  assert.deepEqual(data, { date: '2026-03-01', notes: '', ratings: [], medications: [], trackerNotes: [], skills: [], period: null });
 });
 
 test('dates are validated', async () => {
@@ -219,4 +219,32 @@ test('range queries', async () => {
   assert.equal((await c.get('/api/days?from=2026-01-01&to=2027-01-02')).status, 400); // 367 days
   assert.equal((await c.get('/api/days?from=2026-01-01')).status, 400);
   assert.equal((await c.get('/api/days?from=bad&to=2026-01-01')).status, 400);
+});
+
+test('period days: marked, flow changed, cleared, and listed in a range', async () => {
+  let day = (await c.put('/api/days/2026-04-01', { period: { flow: null } })).data;
+  assert.deepEqual(day.period, { flow: null });
+
+  await c.put('/api/days/2026-04-01', { period: { flow: 'heavy' } });
+  await c.put('/api/days/2026-04-02', { period: { flow: 'light' } });
+  await c.put('/api/days/2026-04-01', { notes: 'unrelated' }); // omitting period leaves it alone
+  day = (await c.get('/api/days/2026-04-01')).data;
+  assert.deepEqual(day.period, { flow: 'heavy' });
+
+  const range = (await c.get('/api/days?from=2026-04-01&to=2026-04-03')).data;
+  assert.deepEqual(range.map((d) => [d.date, d.period]), [
+    ['2026-04-01', { flow: 'heavy' }],
+    ['2026-04-02', { flow: 'light' }],
+  ]);
+
+  await c.put('/api/days/2026-04-02', { period: null });
+  day = (await c.get('/api/days/2026-04-02')).data;
+  assert.equal(day.period, null);
+});
+
+test('period payloads are validated', async () => {
+  for (const period of [true, 'heavy', { flow: 'spotting' }, { flow: 3 }]) {
+    assert.equal((await c.put('/api/days/2026-04-05', { period })).status, 400, JSON.stringify(period));
+  }
+  assert.equal((await c.get('/api/days/2026-04-05')).data.period, null);
 });

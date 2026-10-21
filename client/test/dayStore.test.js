@@ -40,6 +40,7 @@ describe('normalizeDay / isEmptyDay', () => {
       medications: { 7: false },
       trackerNotes: {},
       skills: {},
+      period: null,
     });
     expect(isEmptyDay(d)).toBe(false);
   });
@@ -131,10 +132,25 @@ describe('autosave', () => {
     expect(isEmptyDay(normalizeDay({ ...emptyRaw('2026-03-01'), skills: [3] }))).toBe(false);
   });
 
-  it('omits notes when they were not touched', async () => {
+  it('omits notes and period when they were not touched', async () => {
     store.setRating(sadness, 1);
     await store.flush();
     expect(api.put.mock.calls[0][1]).not.toHaveProperty('notes');
+    expect(api.put.mock.calls[0][1]).not.toHaveProperty('period');
+  });
+
+  it('saves the period as last set, and a period-only day counts as an entry', async () => {
+    store.setPeriod({ flow: null });
+    store.setPeriod({ flow: 'medium' });
+    expect(store.day.period).toEqual({ flow: 'medium' });
+    await store.flush();
+    expect(api.put.mock.calls[0][1].period).toEqual({ flow: 'medium' });
+
+    store.setPeriod(null);
+    await store.flush();
+    expect(api.put.mock.calls[1][1].period).toBeNull();
+
+    expect(isEmptyDay(normalizeDay({ ...emptyRaw('2026-03-01'), period: { flow: null } }))).toBe(false);
   });
 
   it('clearing a rating sends null, and acted-on needs a rating first', async () => {

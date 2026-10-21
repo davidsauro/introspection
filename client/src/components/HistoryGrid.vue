@@ -1,7 +1,7 @@
 <script setup>
 import { formatWeekday } from '../utils/dates.js';
 
-// Tracker × date heatmap with a medication row per medication.
+// Tracker × date heatmap with a period row, and a medication row per medication.
 defineProps({
   report: { type: Object, required: true }, // from buildReport()
 });
@@ -50,6 +50,16 @@ const dayNum = (d) => Number(d.slice(8));
             </td>
           </tr>
         </template>
+
+        <tr class="section">
+          <th :colspan="report.dates.length + 1" scope="colgroup">Period</th>
+        </tr>
+        <tr>
+          <th class="name" scope="row">Bleeding</th>
+          <td v-for="(p, i) in report.period" :key="i" class="cell period">
+            <span v-if="p" class="bleed" title="Bleeding" aria-label="bleeding" />
+          </td>
+        </tr>
 
         <template v-if="report.medications.length">
           <tr class="section">
@@ -178,6 +188,19 @@ td {
 
 .med.no {
   color: var(--muted);
+}
+
+.period {
+  vertical-align: middle;
+}
+
+.bleed {
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: auto;
+  border-radius: 3px;
+  background: var(--period);
 }
 
 .skill.used {

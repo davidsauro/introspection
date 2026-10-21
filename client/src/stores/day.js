@@ -14,6 +14,7 @@ export function normalizeDay(raw) {
     medications: Object.fromEntries(raw.medications.map((m) => [m.medicationId, m.taken])),
     trackerNotes: Object.fromEntries((raw.trackerNotes ?? []).map((n) => [n.trackerId, n.note])),
     skills: Object.fromEntries((raw.skills ?? []).map((id) => [id, true])),
+    period: raw.period ?? null, // null, or { flow: 'light' | 'medium' | 'heavy' | null }
   };
 }
 
@@ -24,7 +25,8 @@ export function isEmptyDay(day) {
       !Object.keys(day.ratings).length &&
       !Object.keys(day.medications).length &&
       !Object.values(day.trackerNotes ?? {}).some((n) => n.trim()) &&
-      !Object.keys(day.skills ?? {}).length)
+      !Object.keys(day.skills ?? {}).length &&
+      !day.period)
   );
 }
 
@@ -35,7 +37,7 @@ const pendingByDate = new Map();
 
 function pendingFor(date) {
   if (!pendingByDate.has(date)) {
-    pendingByDate.set(date, { notes: undefined, ratings: new Map(), medications: new Map(), trackerNotes: new Map(), skills: new Map() });
+    pendingByDate.set(date, { notes: undefined, period: undefined, ratings: new Map(), medications: new Map(), trackerNotes: new Map(), skills: new Map() });
   }
   return pendingByDate.get(date);
 }
@@ -101,6 +103,13 @@ export const useDayStore = defineStore('day', {
       this.schedule();
     },
 
+    // null means no bleeding that day; otherwise { flow }.
+    setPeriod(period) {
+      this.day.period = period;
+      pendingFor(this.date).period = period;
+      this.schedule();
+    },
+
     setSkill(skill, used) {
       if (used) this.day.skills[skill.id] = true;
       else delete this.day.skills[skill.id];
@@ -145,6 +154,7 @@ export const useDayStore = defineStore('day', {
         batches.map(([date, p]) => {
           const body = {
             ...(p.notes !== undefined && { notes: p.notes }),
+            ...(p.period !== undefined && { period: p.period }),
             ratings: [...p.ratings.values()],
             medications: [...p.medications.values()],
             trackerNotes: [...p.trackerNotes.values()],
@@ -157,6 +167,7 @@ export const useDayStore = defineStore('day', {
             // edits replaced them, so the next save retries.
             const again = pendingFor(date);
             if (p.notes !== undefined && again.notes === undefined) again.notes = p.notes;
+            if (p.period !== undefined && again.period === undefined) again.period = p.period;
             for (const [k, v] of p.ratings) if (!again.ratings.has(k)) again.ratings.set(k, v);
             for (const [k, v] of p.medications) if (!again.medications.has(k)) again.medications.set(k, v);
             for (const [k, v] of p.trackerNotes) if (!again.trackerNotes.has(k)) again.trackerNotes.set(k, v);

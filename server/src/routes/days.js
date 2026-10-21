@@ -7,8 +7,9 @@ export const daysRouter = express.Router();
 const MAX_RANGE_DAYS = 366;
 const MAX_NOTES = 20000;
 const MAX_TRACKER_NOTE = 5000;
+const FLOWS = ['light', 'medium', 'heavy'];
 
-const emptyDay = (date) => ({ date, notes: '', ratings: [], medications: [], trackerNotes: [], skills: [] });
+const emptyDay = (date) => ({ date, notes: '', ratings: [], medications: [], trackerNotes: [], skills: [], period: null });
 
 // Loads days in [from, to] keyed by date. Only dates with something stored are included.
 export function loadDays(from, to) {
@@ -42,6 +43,9 @@ export function loadDays(from, to) {
   for (const r of db.prepare('SELECT date, skill_id FROM skill_log WHERE date BETWEEN ? AND ? ORDER BY skill_id').all(from, to)) {
     ensure(r.date).skills.push(r.skill_id);
   }
+  for (const r of db.prepare('SELECT date, flow FROM period_log WHERE date BETWEEN ? AND ?').all(from, to)) {
+    ensure(r.date).period = { flow: r.flow };
+  }
   return [...days.values()].sort((a, b) => a.date.localeCompare(b.date));
 }
 
@@ -66,8 +70,10 @@ daysRouter.get('/:date', (req, res) => {
  *     ratings?: [{ trackerId, value: int | null, scaleMax?: int, actedOn?: bool | null }],
  *     medications?: [{ medicationId, taken: bool | null }],
  *     trackerNotes?: [{ trackerId, note: string | null }],
- *     skills?: [{ skillId, used: bool }] }
- * A null value/taken clears that entry; a null or blank note deletes it.
+ *     skills?: [{ skillId, used: bool }],
+ *     period?: { flow: 'light' | 'medium' | 'heavy' | null } | null }
+ * A null value/taken clears that entry; a null or blank note deletes it; a null period means
+ * no bleeding that day.
  *
  * scaleMax is the scale the value was chosen on. It may be the tracker's current scale, or the
  * scale an existing rating for this day was recorded on (so old entries can be edited in place
@@ -75,7 +81,7 @@ daysRouter.get('/:date', (req, res) => {
  */
 daysRouter.put('/:date', (req, res) => {
   const date = assertDate(req.params.date);
-  const { notes, ratings = [], medications = [], trackerNotes = [], skills = [] } = req.body ?? {};
+  const { notes, ratings = [], medications = [], trackerNotes = [], skills = [], period } = req.body ?? {};
   if (notes !== undefined && (typeof notes !== 'string' || notes.length > MAX_NOTES)) {
     throw new HttpError(400, `notes must be a string of at most ${MAX_NOTES} characters`);
   }
@@ -98,6 +104,11 @@ daysRouter.put('/:date', (req, res) => {
   for (const s of skills) {
     if (!Number.isInteger(s?.skillId)) throw new HttpError(400, 'each skill needs an integer skillId');
     assertBool(s.used, 'used');
+  }
+  if (period !== undefined && period !== null) {
+    if (typeof period !== 'object' || !(period.flow == null || FLOWS.includes(period.flow))) {
+      throw new HttpError(400, `period must be null or { flow: ${FLOWS.join(' | ')} | null }`);
+    }
   }
 
   const getTracker = db.prepare('SELECT id, scale_max FROM trackers WHERE id = ?');
@@ -165,6 +176,13 @@ daysRouter.put('/:date', (req, res) => {
       if (!getSkill.get(s.skillId)) throw new HttpError(400, `Unknown skill ${s.skillId}`);
       if (s.used) logSkill.run(date, s.skillId);
       else unlogSkill.run(date, s.skillId);
+    }
+
+    if (period === null) db.prepare('DELETE FROM period_log WHERE date = ?').run(date);
+    else if (period !== undefined) {
+      db.prepare(
+        `INSERT INTO period_log (date, flow) VALUES (?, ?) ON CONFLICT(date) DO UPDATE SET flow = excluded.flow`
+      ).run(date, period.flow ?? null);
     }
   })();
 

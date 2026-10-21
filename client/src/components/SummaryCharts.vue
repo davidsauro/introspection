@@ -1,6 +1,7 @@
 <script setup>
 import TrendChart from './TrendChart.vue';
 import MedicationChart from './MedicationChart.vue';
+import PeriodCalendar from './PeriodCalendar.vue';
 import { formatNumber } from '../utils/report.js';
 
 defineProps({
@@ -48,6 +49,11 @@ defineProps({
           </tbody>
         </table>
       </div>
+    </section>
+
+    <section>
+      <h2 class="section-title">Period</h2>
+      <PeriodCalendar :report="report" />
     </section>
 
     <section v-if="report.medications.length">

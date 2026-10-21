@@ -119,6 +119,13 @@ const migrations = [
   ALTER TABLE skills RENAME COLUMN starter TO starred;
   UPDATE skills SET starred = 0;
   `,
+  // v5: period days. A row means there was bleeding that day; flow is optional.
+  `
+  CREATE TABLE period_log (
+    date TEXT PRIMARY KEY,
+    flow TEXT CHECK (flow IN ('light', 'medium', 'heavy'))
+  );
+  `,
 ];
 
 function migrate() {

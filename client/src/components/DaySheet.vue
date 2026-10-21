@@ -6,13 +6,14 @@ import { vAutogrow } from '../utils/autogrow.js';
 import TrackerCard from './TrackerCard.vue';
 import MedicationList from './MedicationList.vue';
 import SkillsSection from './SkillsSection.vue';
+import PeriodCard from './PeriodCard.vue';
 
 // One day laid out as the diary card on the Day screen. The PDF (src/pdf/document.js)
 // shows the same items via visibleForDay().
 const props = defineProps({
   day: { type: Object, required: true }, // normalized day (see stores/day.js)
 });
-const emit = defineEmits(['rate', 'acted', 'medication', 'notes', 'tracker-note', 'skill']);
+const emit = defineEmits(['rate', 'acted', 'medication', 'notes', 'tracker-note', 'skill', 'period']);
 
 const catalog = useCatalogStore();
 const visible = computed(() => visibleForDay(catalog, props.day));
@@ -53,6 +54,11 @@ const visible = computed(() => visibleForDay(catalog, props.day));
               @note="emit('tracker-note', t, $event)"
             />
           </div>
+        </section>
+
+        <section>
+          <h2 class="section-title">Period</h2>
+          <PeriodCard :period="day.period" @set="emit('period', $event)" />
         </section>
       </div>
 
