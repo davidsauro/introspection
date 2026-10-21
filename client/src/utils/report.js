@@ -69,13 +69,17 @@ export function buildReport(catalog, rawDays, dates) {
 }
 
 // Per date: null or { hours, fellAsleepQuickly, stayedAsleep }, plus the average hours over
-// nights that have hours entered.
+// nights that have hours entered, and how often each box was ticked on nights with an entry.
 function sleepStats(nights) {
   const hours = nights.map((n) => n?.hours ?? null).filter((h) => h !== null);
+  const recorded = nights.filter(Boolean);
   return {
     nights,
     average: hours.length ? hours.reduce((s, h) => s + h, 0) / hours.length : null,
     nightsWithHours: hours.length,
+    nightsRecorded: recorded.length,
+    fellAsleepQuickly: recorded.filter((n) => n.fellAsleepQuickly).length,
+    stayedAsleep: recorded.filter((n) => n.stayedAsleep).length,
   };
 }
 

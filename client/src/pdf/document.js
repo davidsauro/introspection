@@ -1,7 +1,7 @@
 // Builds the pdfmake document definition for the therapist PDF. Pure data in, data out
 // (no DOM), so it can be unit-tested in Node. Chart images are rendered separately in the
 // browser (see charts.js) and passed in as data URLs.
-import { formatLong, formatRange, formatShort, formatWeekday } from '../utils/dates.js';
+import { addDays, formatLong, formatMedium, formatRange, formatShort, formatWeekday } from '../utils/dates.js';
 import { formatNumber, visibleForDay } from '../utils/report.js';
 import { MODULES, compareSkills } from '../utils/skills.js';
 
@@ -17,6 +17,8 @@ const C = {
   accent: '#4f7c78',
   urge: '#b0664c',
   danger: '#b3412f',
+  period: '#c23a3a',
+  sleep: '#5a6bb0',
   text: '#23262b',
   muted: '#6b7078',
   border: '#e2dfd8',
@@ -188,6 +190,39 @@ function skillsBox(day, catalog) {
   });
 }
 
+const FLOW_LABELS = { light: 'Light', medium: 'Medium', heavy: 'Heavy' };
+
+// Label/value rows in a card, like the medications box.
+function answerRows(rows) {
+  return {
+    table: { widths: ['*', 'auto'], body: rows.map(([label, value]) => [{ text: label, bold: true, fontSize: 9 }, { ...value, fontSize: 9 }]) },
+    layout: {
+      ...cardLayout,
+      vLineWidth: (i, node) => (i === 0 || i === node.table.widths.length ? 0.75 : 0),
+    },
+  };
+}
+
+function periodBox(period) {
+  return answerRows([
+    ['Bleeding', period ? { text: 'Yes', bold: true, color: C.period } : { text: 'No', color: C.muted }],
+    ...(period ? [['Flow', period.flow ? { text: FLOW_LABELS[period.flow] } : { text: 'Not set', color: C.muted }]] : []),
+  ]);
+}
+
+function sleepBox(sleep) {
+  if (!sleep) return card({ text: 'No sleep recorded.', fontSize: 9, color: C.muted });
+  return answerRows([
+    ['Hours slept', sleep.hours === null ? { text: '—', color: C.muted } : { text: formatNumber(sleep.hours), bold: true }],
+    ['Fell asleep quickly', answer(sleep.fellAsleepQuickly, { yesColor: C.sleep })],
+    ['Stayed asleep', answer(sleep.stayedAsleep, { yesColor: C.sleep })],
+  ]);
+}
+
+// "Sleep  last night · Tue, Oct 20": a day's sleep entry is about the night before it.
+const sleepHeading = (date) =>
+  heading(['Sleep  ', { text: `last night · ${formatMedium(addDays(date, -1))}`, bold: false, fontSize: 8.5, color: C.muted }]);
+
 function notesBox(notes) {
   const text = notes?.trim();
   return card(text ? { text: notes, fontSize: 9, lineHeight: 1.25 } : { text: 'No notes.', fontSize: 9, color: C.muted });
@@ -213,6 +248,14 @@ export function daySection(date, day, catalog, { pageBreak } = {}) {
     else content.push({ text: `No ${title.toLowerCase()} set up.`, color: C.muted, fontSize: 8.5, margin: [0, 0, 0, 8] });
   }
 
+  content.push({
+    columns: [
+      { width: '*', stack: [heading('Period'), periodBox(day.period)] },
+      { width: '*', stack: [sleepHeading(date), sleepBox(day.sleep)] },
+    ],
+    columnGap: 12,
+    unbreakable: true,
+  });
   content.push({
     columns: [
       { width: '*', stack: [heading('Medications'), medicationsBox(visible.medications, day.medications)] },
@@ -262,6 +305,39 @@ function heatmapTable(report, from, to) {
       body.push([{ text: s.tracker.name, bold: true }, ...s.points.slice(start, end + 1).map((p) => heatCell(p, s.tracker.kind))]);
     }
   }
+  body.push(sectionRow('Period'));
+  body.push([
+    { text: 'Bleeding', bold: true },
+    ...report.period.slice(start, end + 1).map((p) => ({ text: '', fillColor: p ? C.period : C.surface2 })),
+  ]);
+
+  const nights = report.sleep.nights.slice(start, end + 1);
+  body.push(sectionRow('Sleep (the night before)'));
+  body.push([
+    { text: 'Hours slept', bold: true },
+    ...nights.map((n) => ({
+      text: n?.hours != null ? formatNumber(n.hours) : '',
+      bold: true,
+      alignment: 'center',
+      fillColor: n?.hours != null ? tint(C.sleep, 22) : C.surface2,
+    })),
+  ]);
+  for (const [key, label] of [
+    ['fellAsleepQuickly', 'Fell asleep quickly'],
+    ['stayedAsleep', 'Stayed asleep'],
+  ]) {
+    body.push([
+      { text: label, bold: true },
+      ...nights.map((n) => ({
+        text: !n ? '' : n[key] ? 'Y' : 'N',
+        color: n?.[key] ? C.sleep : C.muted,
+        bold: true,
+        alignment: 'center',
+        fillColor: C.surface2,
+      })),
+    ]);
+  }
+
   if (report.medications.length) {
     body.push(sectionRow('Medications'));
     for (const m of report.medications) {
@@ -393,6 +469,52 @@ function skillsTable(report) {
   };
 }
 
+// The period days in the range, with their flow.
+function periodSummary(report) {
+  const marked = report.dates.map((date, i) => ({ date, period: report.period[i] })).filter((d) => d.period);
+  if (!marked.length) return card({ text: 'No bleeding recorded in this range.', fontSize: 9, color: C.muted });
+  const list = marked.map((d) => (d.period.flow ? `${formatShort(d.date)} (${d.period.flow})` : formatShort(d.date)));
+  return card({
+    stack: [
+      { text: `Bleeding on ${marked.length} of ${report.dates.length} days`, bold: true, color: C.period, fontSize: 9 },
+      { text: list.join(', '), fontSize: 8.5, margin: [0, 3, 0, 0] },
+    ],
+  });
+}
+
+function sleepChartCard(sleep, image) {
+  return card({
+    stack: [
+      {
+        columns: [
+          { text: 'Hours slept', bold: true, fontSize: 9 },
+          { text: 'the night before each date', width: 'auto', fontSize: 7.5, color: C.muted, margin: [4, 1, 0, 0] },
+        ],
+      },
+      image
+        ? { image, width: CHART_SIZE.width, height: CHART_SIZE.height, margin: [0, 4, 0, 0] }
+        : {
+            text: sleep.nightsWithHours
+              ? `Hours entered for ${sleep.nightsWithHours} of ${sleep.nights.length} nights`
+              : 'No hours entered in this range.',
+            fontSize: 8,
+            color: C.muted,
+            margin: [0, 4, 0, 0],
+          },
+    ],
+  });
+}
+
+function sleepSummaryCard(sleep) {
+  const of = (n) => (sleep.nightsRecorded ? { text: `${n} of ${sleep.nightsRecorded} nights` } : { text: '—', color: C.muted });
+  return answerRows([
+    ['Average hours', sleep.nightsWithHours ? { text: formatNumber(sleep.average), bold: true } : { text: '—', color: C.muted }],
+    ['Nights with hours', { text: String(sleep.nightsWithHours) }],
+    ['Fell asleep quickly', of(sleep.fellAsleepQuickly)],
+    ['Stayed asleep', of(sleep.stayedAsleep)],
+  ]);
+}
+
 export function summarySection(report, chartImages = {}) {
   const from = report.dates[0];
   const to = report.dates.at(-1);
@@ -415,7 +537,7 @@ export function summarySection(report, chartImages = {}) {
     text: [
       'Shading shows how strong each rating was for its scale. ',
       { text: '•', color: C.danger, fontSize: 10 },
-      ' = acted on.  Y / N = medication taken / not taken.  Shaded skill cells = skill used.',
+      ' = acted on.  Red = bleeding.  Y / N = yes / no (medication taken, sleep boxes).  Shaded skill cells = skill used.',
     ],
     fontSize: 7,
     color: C.muted,
@@ -429,6 +551,8 @@ export function summarySection(report, chartImages = {}) {
     content.push(heading('Urges'), ...cardRows(report.urges.map((s) => chartCard(s, chartImages[s.tracker.id])), 2));
     content.push({ ...urgeTable(report.urges), unbreakable: true });
   }
+  content.push({ stack: [heading('Period'), periodSummary(report)], unbreakable: true });
+  content.push(heading('Sleep'), ...cardRows([sleepChartCard(report.sleep, chartImages.sleep), sleepSummaryCard(report.sleep)], 2));
   if (report.medications.length) {
     content.push({ stack: [heading('Medications'), medicationTable(report.medications)], unbreakable: true });
   }
@@ -446,7 +570,8 @@ export function summarySection(report, chartImages = {}) {
 /*
  * report:      buildReport() for the range
  * catalog:     the catalog store (emotions, urges, medications)
- * chartImages: trackerId → PNG data URL (optional; omitted charts show a text summary)
+ * chartImages: trackerId → PNG data URL, and `sleep` → the hours chart (optional; omitted
+ *              charts show a text summary)
  */
 export function buildPdfDocument({ report, catalog, chartImages = {}, title = 'Diary Card' }) {
   const from = report.dates[0];

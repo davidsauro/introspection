@@ -10,7 +10,8 @@ import {
   Tooltip,
   Filler,
 } from 'chart.js';
-import { formatShort } from './dates.js';
+import { addDays, formatShort } from './dates.js';
+import { formatNumber } from './report.js';
 
 Chart.register(LineController, LineElement, PointElement, BarController, BarElement, LinearScale, CategoryScale, Tooltip, Filler);
 
@@ -30,6 +31,7 @@ export function themeColors() {
     text: cssVar('--text'),
     muted: cssVar('--muted'),
     grid: cssVar('--border'),
+    sleep: cssVar('--sleep'),
   };
 }
 
@@ -87,6 +89,48 @@ export function trendChartConfig(stat, colors, { still = false } = {}) {
           min: 0,
           max: stat.scaleMax,
           ticks: { color: colors.muted, stepSize: stat.scaleMax > 5 ? 2 : 1, font: { size: still ? 11 : 10 } },
+          grid: { color: colors.grid },
+        },
+      },
+    },
+  };
+}
+
+/*
+ * Bars of hours slept per night, with gaps where no hours were entered. Each bar sits on the
+ * date it was entered, which is the morning after that night. Shared by History and the PDF.
+ *   sleep:  buildReport().sleep;  dates: the report's dates
+ *   colors: { sleep, muted, grid } as #rrggbb;  still: as for trendChartConfig
+ */
+export function sleepChartConfig(sleep, dates, colors, { still = false } = {}) {
+  const hours = sleep.nights.map((n) => n?.hours ?? null);
+  return {
+    type: 'bar',
+    data: {
+      labels: dates.map(formatShort),
+      datasets: [{ data: hours, backgroundColor: colors.sleep, borderRadius: 4, maxBarThickness: 28 }],
+    },
+    options: {
+      responsive: !still,
+      maintainAspectRatio: false,
+      animation: still ? false : { duration: 250 },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          enabled: !still,
+          callbacks: {
+            title: (items) => `Night of ${formatShort(addDays(dates[items[0].dataIndex], -1))}`,
+            label: (ctx) => `${formatNumber(ctx.raw)} hours`,
+          },
+        },
+      },
+      scales: {
+        x: { ticks: { color: colors.muted, maxRotation: 0, autoSkipPadding: 12, font: { size: still ? 11 : 10 } }, grid: { display: false } },
+        y: {
+          min: 0,
+          // 12 hours fits most nights; a longer one stretches the axis to the next even hour.
+          max: Math.max(12, Math.ceil(Math.max(0, ...hours) / 2) * 2),
+          ticks: { color: colors.muted, stepSize: still ? 4 : 2, font: { size: still ? 11 : 10 } },
           grid: { color: colors.grid },
         },
       },

@@ -74,6 +74,8 @@ const raw = [
       { trackerId: 1, note: '  Missed Mum.\nCried after lunch.  ' },
       { trackerId: 2, note: '   ' },
     ],
+    period: { flow: 'heavy' },
+    sleep: { hours: 7.5, fellAsleepQuickly: false, stayedAsleep: true },
   },
   { date: '2026-03-04', notes: '', ratings: [{ trackerId: 2, value: 5, scaleMax: 5, actedOn: null }], medications: [] },
 ];
@@ -116,6 +118,13 @@ describe('single-day PDF', () => {
     expect(text).toEqual(['Mindfulness: Wise Mind, Observe', 'Distress Tolerance: TIPP']);
   });
 
+  it('shows period and last night\'s sleep', () => {
+    for (const w of ['Period', 'Bleeding', 'Heavy', 'Hours slept', '7.5', 'Fell asleep quickly', 'Stayed asleep']) {
+      expect(words).toContain(w);
+    }
+    expect(words.some((w) => /^last night · .*Mar.* 1/.test(w))).toBe(true);
+  });
+
   it('renders to a one-page PDF', async () => {
     const { buffer, pages } = await render(doc);
     expect(buffer.subarray(0, 5).toString()).toBe('%PDF-');
@@ -129,6 +138,13 @@ describe('day with no entry', () => {
     const words = texts(doc.content);
     expect(words).toContain('No entry recorded for this day.');
     expect(words).not.toContain('Sadness');
+  });
+
+  it('shows "No" for bleeding and no sleep on a day with other entries only', () => {
+    const doc = buildPdfDocument({ report: reportFor('2026-03-04', '2026-03-04'), catalog });
+    const words = texts(doc.content);
+    expect(words).toContain('Bleeding');
+    expect(words).toContain('No sleep recorded.');
   });
 });
 
@@ -159,6 +175,16 @@ describe('multi-day PDF', () => {
 
   it('falls back to a text summary when chart images are missing', () => {
     expect(words).toContain('Rated on 1 of 7 days');
+    expect(words).toContain('Hours entered for 1 of 7 nights');
+  });
+
+  it('summarises period days and sleep', () => {
+    expect(words).toContain('Bleeding on 1 of 7 days');
+    expect(words.some((w) => /Mar.* 2 \(heavy\)/.test(w))).toBe(true);
+    expect(words).toContain('Sleep (the night before)'.toUpperCase());
+    expect(words).toContain('Average hours');
+    expect(words).toContain('0 of 1 nights'); // fell asleep quickly
+    expect(words).toContain('1 of 1 nights'); // stayed asleep
   });
 
   it('splits a long range into several heatmap tables', () => {
@@ -182,7 +208,7 @@ describe('multi-day PDF', () => {
   it('embeds chart images when given', async () => {
     // 1×1 transparent PNG
     const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
-    const withCharts = buildPdfDocument({ report, catalog, chartImages: { 1: png, 4: png } });
+    const withCharts = buildPdfDocument({ report, catalog, chartImages: { 1: png, 4: png, sleep: png } });
     expect(JSON.stringify(withCharts.content)).toContain(png);
     const { pages } = await render(withCharts);
     expect(pages).toBeGreaterThanOrEqual(8);
