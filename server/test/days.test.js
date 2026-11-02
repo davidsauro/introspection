@@ -22,7 +22,7 @@ const rating = (day, id) => day.ratings.find((r) => r.trackerId === id);
 test('a day with nothing saved comes back empty', async () => {
   const { status, data } = await c.get('/api/days/2026-03-01');
   assert.equal(status, 200);
-  assert.deepEqual(data, { date: '2026-03-01', notes: '', ratings: [], medications: [], trackerNotes: [], skills: [], period: null, sleep: null });
+  assert.deepEqual(data, { date: '2026-03-01', notes: '', ratings: [], medications: [], trackerNotes: [], skills: [], period: null, ovulating: false, sleep: null });
 });
 
 test('dates are validated', async () => {
@@ -240,6 +240,31 @@ test('period days: marked, flow changed, cleared, and listed in a range', async 
   await c.put('/api/days/2026-04-02', { period: null });
   day = (await c.get('/api/days/2026-04-02')).data;
   assert.equal(day.period, null);
+});
+
+test('ovulation days: marked, left alone when omitted, cleared, and listed in a range', async () => {
+  let day = (await c.put('/api/days/2026-04-10', { ovulating: true })).data;
+  assert.equal(day.ovulating, true);
+  assert.equal(day.period, null); // independent of bleeding
+
+  await c.put('/api/days/2026-04-11', { ovulating: true, period: { flow: 'light' } });
+  await c.put('/api/days/2026-04-10', { notes: 'unrelated' }); // omitting ovulating leaves it alone
+  assert.equal((await c.get('/api/days/2026-04-10')).data.ovulating, true);
+
+  const range = (await c.get('/api/days?from=2026-04-10&to=2026-04-12')).data;
+  assert.deepEqual(range.map((d) => [d.date, d.ovulating, d.period]), [
+    ['2026-04-10', true, null],
+    ['2026-04-11', true, { flow: 'light' }],
+  ]);
+
+  await c.put('/api/days/2026-04-11', { ovulating: false });
+  day = (await c.get('/api/days/2026-04-11')).data;
+  assert.equal(day.ovulating, false);
+  assert.deepEqual(day.period, { flow: 'light' });
+
+  for (const ovulating of [null, 1, 'yes']) {
+    assert.equal((await c.put('/api/days/2026-04-12', { ovulating })).status, 400, JSON.stringify(ovulating));
+  }
 });
 
 test('period payloads are validated', async () => {

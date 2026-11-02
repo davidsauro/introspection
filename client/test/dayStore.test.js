@@ -41,6 +41,7 @@ describe('normalizeDay / isEmptyDay', () => {
       trackerNotes: {},
       skills: {},
       period: null,
+      ovulating: false,
       sleep: null,
     });
     expect(isEmptyDay(d)).toBe(false);
@@ -133,11 +134,25 @@ describe('autosave', () => {
     expect(isEmptyDay(normalizeDay({ ...emptyRaw('2026-03-01'), skills: [3] }))).toBe(false);
   });
 
-  it('omits notes and period when they were not touched', async () => {
+  it('omits notes, period and ovulating when they were not touched', async () => {
     store.setRating(sadness, 1);
     await store.flush();
     expect(api.put.mock.calls[0][1]).not.toHaveProperty('notes');
     expect(api.put.mock.calls[0][1]).not.toHaveProperty('period');
+    expect(api.put.mock.calls[0][1]).not.toHaveProperty('ovulating');
+  });
+
+  it('saves ovulating as last set, and an ovulation-only day counts as an entry', async () => {
+    store.setOvulating(true);
+    expect(store.day.ovulating).toBe(true);
+    await store.flush();
+    expect(api.put.mock.calls[0][1].ovulating).toBe(true);
+
+    store.setOvulating(false);
+    await store.flush();
+    expect(api.put.mock.calls[1][1].ovulating).toBe(false);
+
+    expect(isEmptyDay(normalizeDay({ ...emptyRaw('2026-03-01'), ovulating: true }))).toBe(false);
   });
 
   it('saves the period as last set, and a period-only day counts as an entry', async () => {

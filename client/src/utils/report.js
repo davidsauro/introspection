@@ -58,6 +58,8 @@ export function buildReport(catalog, rawDays, dates) {
     days,
     // Per date: null, or { flow } when she marked bleeding that day.
     period: dates.map((date) => days[date]?.period ?? null),
+    // Per date: true when she marked ovulating that day.
+    ovulation: dates.map((date) => !!days[date]?.ovulating),
     sleep: sleepStats(dates.map((date) => days[date]?.sleep ?? null)),
     emotions: emotions.map(trackerStats),
     urges: urges.map(trackerStats),

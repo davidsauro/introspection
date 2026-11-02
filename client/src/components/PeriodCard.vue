@@ -1,11 +1,13 @@
 <script setup>
 import CheckRow from './CheckRow.vue';
 
-// "Period" on the Day screen: a bleeding checkbox, and a flow choice once it's ticked.
+// "Period" on the Day screen: a bleeding checkbox with a flow choice once it's ticked, and an
+// ovulating checkbox.
 const props = defineProps({
   period: { type: Object, default: null }, // null, or { flow: 'light' | 'medium' | 'heavy' | null }
+  ovulating: { type: Boolean, default: false },
 });
-const emit = defineEmits(['set']);
+const emit = defineEmits(['set', 'ovulating']);
 
 const FLOWS = [
   { value: 'light', label: 'Light' },
@@ -28,6 +30,13 @@ const setFlow = (value) => emit('set', { flow: value || null });
         <option v-for="f in FLOWS" :key="f.value" :value="f.value">{{ f.label }}</option>
       </select>
     </label>
+    <CheckRow
+      class="ovulating"
+      label="Ovulating"
+      tone="ovulation"
+      :checked="ovulating"
+      @toggle="emit('ovulating', $event)"
+    />
   </div>
 </template>
 
@@ -42,6 +51,10 @@ const setFlow = (value) => emit('set', { flow: value || null });
   align-items: center;
   gap: 14px;
   padding: 8px 16px 12px;
+  border-top: 1px solid var(--border);
+}
+
+.ovulating {
   border-top: 1px solid var(--border);
 }
 

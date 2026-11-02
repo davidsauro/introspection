@@ -18,6 +18,7 @@ const C = {
   urge: '#b0664c',
   danger: '#b3412f',
   period: '#c23a3a',
+  ovulation: '#2f8a52',
   sleep: '#5a6bb0',
   text: '#23262b',
   muted: '#6b7078',
@@ -203,10 +204,11 @@ function answerRows(rows) {
   };
 }
 
-function periodBox(period) {
+function periodBox(period, ovulating) {
   return answerRows([
     ['Bleeding', period ? { text: 'Yes', bold: true, color: C.period } : { text: 'No', color: C.muted }],
     ...(period ? [['Flow', period.flow ? { text: FLOW_LABELS[period.flow] } : { text: 'Not set', color: C.muted }]] : []),
+    ['Ovulating', ovulating ? { text: 'Yes', bold: true, color: C.ovulation } : { text: 'No', color: C.muted }],
   ]);
 }
 
@@ -250,7 +252,7 @@ export function daySection(date, day, catalog, { pageBreak } = {}) {
 
   content.push({
     columns: [
-      { width: '*', stack: [heading('Period'), periodBox(day.period)] },
+      { width: '*', stack: [heading('Period'), periodBox(day.period, day.ovulating)] },
       { width: '*', stack: [sleepHeading(date), sleepBox(day.sleep)] },
     ],
     columnGap: 12,
@@ -309,6 +311,10 @@ function heatmapTable(report, from, to) {
   body.push([
     { text: 'Bleeding', bold: true },
     ...report.period.slice(start, end + 1).map((p) => ({ text: '', fillColor: p ? C.period : C.surface2 })),
+  ]);
+  body.push([
+    { text: 'Ovulating', bold: true },
+    ...report.ovulation.slice(start, end + 1).map((o) => ({ text: '', fillColor: o ? C.ovulation : C.surface2 })),
   ]);
 
   const nights = report.sleep.nights.slice(start, end + 1);
@@ -469,17 +475,26 @@ function skillsTable(report) {
   };
 }
 
-// The period days in the range, with their flow.
+// The period days in the range, with their flow, and the ovulation days.
 function periodSummary(report) {
   const marked = report.dates.map((date, i) => ({ date, period: report.period[i] })).filter((d) => d.period);
-  if (!marked.length) return card({ text: 'No bleeding recorded in this range.', fontSize: 9, color: C.muted });
+  const ovulating = report.dates.filter((date, i) => report.ovulation[i]);
+  if (!marked.length && !ovulating.length) {
+    return card({ text: 'No bleeding or ovulation recorded in this range.', fontSize: 9, color: C.muted });
+  }
   const list = marked.map((d) => (d.period.flow ? `${formatShort(d.date)} (${d.period.flow})` : formatShort(d.date)));
-  return card({
-    stack: [
-      { text: `Bleeding on ${marked.length} of ${report.dates.length} days`, bold: true, color: C.period, fontSize: 9 },
-      { text: list.join(', '), fontSize: 8.5, margin: [0, 3, 0, 0] },
-    ],
-  });
+  const stack = [];
+  for (const [label, color, dates] of [
+    ['Bleeding', C.period, list],
+    ['Ovulating', C.ovulation, ovulating.map(formatShort)],
+  ]) {
+    if (!dates.length) continue;
+    stack.push(
+      { text: `${label} on ${dates.length} of ${report.dates.length} days`, bold: true, color, fontSize: 9, margin: [0, stack.length ? 6 : 0, 0, 0] },
+      { text: dates.join(', '), fontSize: 8.5, margin: [0, 3, 0, 0] }
+    );
+  }
+  return card({ stack });
 }
 
 function sleepChartCard(sleep, image) {
@@ -537,7 +552,7 @@ export function summarySection(report, chartImages = {}) {
     text: [
       'Shading shows how strong each rating was for its scale. ',
       { text: '•', color: C.danger, fontSize: 10 },
-      ' = acted on.  Red = bleeding.  Y / N = yes / no (medication taken, sleep boxes).  Shaded skill cells = skill used.',
+      ' = acted on.  Red = bleeding.  Green = ovulating.  Y / N = yes / no (medication taken, sleep boxes).  Shaded skill cells = skill used.',
     ],
     fontSize: 7,
     color: C.muted,

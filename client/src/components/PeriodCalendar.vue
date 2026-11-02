@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import { addDays, formatShort, formatWeekday, formatLong } from '../utils/dates.js';
 
 // Calendar of the History range, Sunday-first weeks, with period days in red (deeper for
-// heavier flow). Days either side of the range that fill out the first and last week are faded.
+// heavier flow) and ovulation days in green (a green ring if also bleeding). Days either side of the range that fill out the first and last week are faded.
 const props = defineProps({
   report: { type: Object, required: true }, // from buildReport()
 });
@@ -13,8 +13,8 @@ const FLOW_LABELS = { light: 'Light', medium: 'Medium', heavy: 'Heavy' };
 const weekday = (date) => new Date(`${date}T00:00:00Z`).getUTCDay();
 
 const weeks = computed(() => {
-  const { dates, period } = props.report;
-  const byDate = Object.fromEntries(dates.map((d, i) => [d, period[i]]));
+  const { dates, period, ovulation } = props.report;
+  const byDate = Object.fromEntries(dates.map((d, i) => [d, { period: period[i], ovulating: ovulation[i] }]));
   const first = addDays(dates[0], -weekday(dates[0]));
   const last = addDays(dates.at(-1), 6 - weekday(dates.at(-1)));
   const out = [];
@@ -23,7 +23,7 @@ const weeks = computed(() => {
       Array.from({ length: 7 }, (_, i) => {
         const date = addDays(d, i);
         const inRange = date in byDate;
-        return { date, inRange, period: inRange ? byDate[date] : null };
+        return { date, inRange, period: byDate[date]?.period ?? null, ovulating: !!byDate[date]?.ovulating };
       })
     );
   }
@@ -32,14 +32,20 @@ const weeks = computed(() => {
 
 const headers = computed(() => weeks.value[0].map((c) => formatWeekday(c.date)));
 const marked = computed(() => props.report.period.filter(Boolean).length);
+const ovulating = computed(() => props.report.ovulation.filter(Boolean).length);
+const days = (n) => `${n} ${n === 1 ? 'day' : 'days'}`;
 
 // Day number, with the month on the first cell and on the 1st so month changes are clear.
 const label = (cell, i, w) => (cell.date.endsWith('-01') || (i === 0 && w === 0) ? formatShort(cell.date) : Number(cell.date.slice(8)));
 
 function title(cell) {
-  if (!cell.period) return formatLong(cell.date);
-  const flow = FLOW_LABELS[cell.period.flow];
-  return `${formatLong(cell.date)}: bleeding${flow ? `, ${flow.toLowerCase()} flow` : ''}`;
+  const marks = [];
+  if (cell.period) {
+    const flow = FLOW_LABELS[cell.period.flow];
+    marks.push(`bleeding${flow ? `, ${flow.toLowerCase()} flow` : ''}`);
+  }
+  if (cell.ovulating) marks.push('ovulating');
+  return marks.length ? `${formatLong(cell.date)}: ${marks.join('; ')}` : formatLong(cell.date);
 }
 </script>
 
@@ -47,7 +53,7 @@ function title(cell) {
   <figure class="card period-cal">
     <figcaption>
       <h3>Period days</h3>
-      <span class="muted small">{{ marked }} {{ marked === 1 ? 'day' : 'days' }} marked</span>
+      <span class="muted small">{{ days(marked) }} bleeding · {{ days(ovulating) }} ovulating</span>
     </figcaption>
     <table class="cal">
       <thead>
@@ -62,7 +68,7 @@ function title(cell) {
               v-if="cell.inRange"
               :to="`/day/${cell.date}`"
               class="day"
-              :class="cell.period && `flow-${cell.period.flow ?? 'unset'}`"
+              :class="[cell.period && `flow-${cell.period.flow ?? 'unset'}`, { ovulating: cell.ovulating }]"
               :title="title(cell)"
               :aria-label="title(cell)"
             >
@@ -75,6 +81,7 @@ function title(cell) {
     </table>
     <div class="legend muted small" aria-hidden="true">
       <span v-for="(name, flow) in FLOW_LABELS" :key="flow"><span class="swatch" :class="`flow-${flow}`" /> {{ name }}</span>
+      <span><span class="swatch ovulating" /> Ovulating</span>
     </div>
   </figure>
 </template>
@@ -145,6 +152,16 @@ td {
 .flow-heavy {
   background: var(--period);
   color: var(--period-contrast);
+}
+
+.ovulating:not([class*='flow-']) {
+  background: var(--ovulation);
+  color: var(--ovulation-contrast);
+}
+
+/* Bleeding and ovulating on the same day: keep the flow colour, ring it in green. */
+[class*='flow-'].ovulating {
+  box-shadow: inset 0 0 0 3px var(--ovulation);
 }
 
 @media (hover: hover) {

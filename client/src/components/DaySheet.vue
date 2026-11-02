@@ -15,7 +15,7 @@ import SleepCard from './SleepCard.vue';
 const props = defineProps({
   day: { type: Object, required: true }, // normalized day (see stores/day.js)
 });
-const emit = defineEmits(['rate', 'acted', 'medication', 'notes', 'tracker-note', 'skill', 'period', 'sleep']);
+const emit = defineEmits(['rate', 'acted', 'medication', 'notes', 'tracker-note', 'skill', 'period', 'ovulating', 'sleep']);
 
 const catalog = useCatalogStore();
 const visible = computed(() => visibleForDay(catalog, props.day));
@@ -62,7 +62,12 @@ const lastNight = computed(() => formatMedium(addDays(props.day.date, -1)));
 
         <section>
           <h2 class="section-title">Period</h2>
-          <PeriodCard :period="day.period" @set="emit('period', $event)" />
+          <PeriodCard
+            :period="day.period"
+            :ovulating="day.ovulating"
+            @set="emit('period', $event)"
+            @ovulating="emit('ovulating', $event)"
+          />
         </section>
 
         <section>

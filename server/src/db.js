@@ -135,6 +135,12 @@ const migrations = [
     stayed_asleep INTEGER NOT NULL DEFAULT 0
   );
   `,
+  // v7: ovulation days. A row means she was ovulating that day.
+  `
+  CREATE TABLE ovulation_log (
+    date TEXT PRIMARY KEY
+  );
+  `,
 ];
 
 function migrate() {

@@ -61,7 +61,13 @@ const sleepMark = (night, key) => (!night ? '' : night[key] ? '✓' : '✗');
         <tr>
           <th class="name" scope="row">Bleeding</th>
           <td v-for="(p, i) in report.period" :key="i" class="cell period">
-            <span v-if="p" class="bleed" title="Bleeding" aria-label="bleeding" />
+            <span v-if="p" class="mark bleed" title="Bleeding" aria-label="bleeding" />
+          </td>
+        </tr>
+        <tr>
+          <th class="name" scope="row">Ovulating</th>
+          <td v-for="(o, i) in report.ovulation" :key="i" class="cell period">
+            <span v-if="o" class="mark ovulating" title="Ovulating" aria-label="ovulating" />
           </td>
         </tr>
 
@@ -217,13 +223,20 @@ td {
   vertical-align: middle;
 }
 
-.bleed {
+.mark {
   display: block;
   width: 16px;
   height: 16px;
   margin: auto;
   border-radius: 3px;
+}
+
+.mark.bleed {
   background: var(--period);
+}
+
+.mark.ovulating {
+  background: var(--ovulation);
 }
 
 .section .note {

@@ -9,7 +9,7 @@ const MAX_NOTES = 20000;
 const MAX_TRACKER_NOTE = 5000;
 const FLOWS = ['light', 'medium', 'heavy'];
 
-const emptyDay = (date) => ({ date, notes: '', ratings: [], medications: [], trackerNotes: [], skills: [], period: null, sleep: null });
+const emptyDay = (date) => ({ date, notes: '', ratings: [], medications: [], trackerNotes: [], skills: [], period: null, ovulating: false, sleep: null });
 
 // Loads days in [from, to] keyed by date. Only dates with something stored are included.
 export function loadDays(from, to) {
@@ -46,6 +46,9 @@ export function loadDays(from, to) {
   for (const r of db.prepare('SELECT date, flow FROM period_log WHERE date BETWEEN ? AND ?').all(from, to)) {
     ensure(r.date).period = { flow: r.flow };
   }
+  for (const r of db.prepare('SELECT date FROM ovulation_log WHERE date BETWEEN ? AND ?').all(from, to)) {
+    ensure(r.date).ovulating = true;
+  }
   for (const r of db
     .prepare('SELECT date, hours, fell_asleep_quickly, stayed_asleep FROM sleep_log WHERE date BETWEEN ? AND ?')
     .all(from, to)) {
@@ -81,9 +84,10 @@ daysRouter.get('/:date', (req, res) => {
  *     trackerNotes?: [{ trackerId, note: string | null }],
  *     skills?: [{ skillId, used: bool }],
  *     period?: { flow: 'light' | 'medium' | 'heavy' | null } | null,
+ *     ovulating?: bool,
  *     sleep?: { hours: number | null, fellAsleepQuickly?: bool, stayedAsleep?: bool } | null }
  * A null value/taken clears that entry; a null or blank note deletes it; a null period means
- * no bleeding that day. sleep replaces the whole night; null, or no hours and nothing ticked,
+ * no bleeding that day; ovulating false unmarks the day. sleep replaces the whole night; null, or no hours and nothing ticked,
  * clears it.
  *
  * scaleMax is the scale the value was chosen on. It may be the tracker's current scale, or the
@@ -92,7 +96,7 @@ daysRouter.get('/:date', (req, res) => {
  */
 daysRouter.put('/:date', (req, res) => {
   const date = assertDate(req.params.date);
-  const { notes, ratings = [], medications = [], trackerNotes = [], skills = [], period, sleep } = req.body ?? {};
+  const { notes, ratings = [], medications = [], trackerNotes = [], skills = [], period, ovulating, sleep } = req.body ?? {};
   if (notes !== undefined && (typeof notes !== 'string' || notes.length > MAX_NOTES)) {
     throw new HttpError(400, `notes must be a string of at most ${MAX_NOTES} characters`);
   }
@@ -121,6 +125,7 @@ daysRouter.put('/:date', (req, res) => {
       throw new HttpError(400, `period must be null or { flow: ${FLOWS.join(' | ')} | null }`);
     }
   }
+  if (ovulating !== undefined) assertBool(ovulating, 'ovulating');
   if (sleep !== undefined && sleep !== null) {
     if (typeof sleep !== 'object') throw new HttpError(400, 'sleep must be an object or null');
     const { hours } = sleep;
@@ -204,6 +209,9 @@ daysRouter.put('/:date', (req, res) => {
         `INSERT INTO period_log (date, flow) VALUES (?, ?) ON CONFLICT(date) DO UPDATE SET flow = excluded.flow`
       ).run(date, period.flow ?? null);
     }
+
+    if (ovulating === true) db.prepare('INSERT OR IGNORE INTO ovulation_log (date) VALUES (?)').run(date);
+    else if (ovulating === false) db.prepare('DELETE FROM ovulation_log WHERE date = ?').run(date);
 
     if (sleep !== undefined) {
       const hours = sleep?.hours ?? null;

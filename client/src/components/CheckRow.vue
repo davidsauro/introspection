@@ -5,7 +5,7 @@ import AppIcon from './AppIcon.vue';
 defineProps({
   label: { type: String, required: true },
   checked: { type: Boolean, default: false },
-  tone: { type: String, default: 'accent' }, // colour token for the ticked box: 'accent' | 'period'
+  tone: { type: String, default: 'accent' }, // colour token for the ticked box: 'accent' | 'period' | 'ovulation'
 });
 defineEmits(['toggle']);
 </script>

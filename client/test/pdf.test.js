@@ -75,6 +75,7 @@ const raw = [
       { trackerId: 2, note: '   ' },
     ],
     period: { flow: 'heavy' },
+    ovulating: true,
     sleep: { hours: 7.5, fellAsleepQuickly: false, stayedAsleep: true },
   },
   { date: '2026-03-04', notes: '', ratings: [{ trackerId: 2, value: 5, scaleMax: 5, actedOn: null }], medications: [] },
@@ -119,7 +120,7 @@ describe('single-day PDF', () => {
   });
 
   it('shows period and last night\'s sleep', () => {
-    for (const w of ['Period', 'Bleeding', 'Heavy', 'Hours slept', '7.5', 'Fell asleep quickly', 'Stayed asleep']) {
+    for (const w of ['Period', 'Bleeding', 'Heavy', 'Ovulating', 'Hours slept', '7.5', 'Fell asleep quickly', 'Stayed asleep']) {
       expect(words).toContain(w);
     }
     expect(words.some((w) => /^last night · .*Mar.* 1/.test(w))).toBe(true);
@@ -180,6 +181,7 @@ describe('multi-day PDF', () => {
 
   it('summarises period days and sleep', () => {
     expect(words).toContain('Bleeding on 1 of 7 days');
+    expect(words).toContain('Ovulating on 1 of 7 days');
     expect(words.some((w) => /Mar.* 2 \(heavy\)/.test(w))).toBe(true);
     expect(words).toContain('Sleep (the night before)'.toUpperCase());
     expect(words).toContain('Average hours');
