@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { api } from '../api.js';
+import { useDayStore } from './day.js';
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({ loaded: false, setupRequired: false, authenticated: false }),
@@ -22,6 +23,8 @@ export const useAuthStore = defineStore('auth', {
     async logout() {
       await api.post('/auth/logout');
       this.authenticated = false;
+      // Unsaved diary changes kept on this device go too; the diary is private.
+      useDayStore().forget();
     },
     changePassword(currentPassword, newPassword) {
       return api.post('/auth/password', { currentPassword, newPassword });

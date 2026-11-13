@@ -11,14 +11,15 @@ export function setUnauthorizedHandler(fn) {
   onUnauthorized = fn;
 }
 
-async function request(method, url, body) {
+async function request(method, url, body, { keepalive = false } = {}) {
   const res = await fetch(`/api${url}`, {
     method,
     credentials: 'same-origin',
     headers: body !== undefined ? { 'Content-Type': 'application/json' } : {},
     body: body !== undefined ? JSON.stringify(body) : undefined,
     // Lets a save started as the tab is closed or the app is backgrounded still complete.
-    keepalive: method !== 'GET',
+    // Only for those saves: browsers refuse keepalive requests over 64 KB.
+    keepalive,
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
@@ -32,6 +33,6 @@ async function request(method, url, body) {
 export const api = {
   get: (url) => request('GET', url),
   post: (url, body = {}) => request('POST', url, body),
-  put: (url, body) => request('PUT', url, body),
+  put: (url, body, options) => request('PUT', url, body, options),
   patch: (url, body) => request('PATCH', url, body),
 };

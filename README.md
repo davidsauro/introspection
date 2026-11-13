@@ -11,6 +11,8 @@ A private, self-hosted daily diary card for one person. It's modelled on the dai
 
 The Day screen also shows a **day streak**, **skills used** and **total entries**.
 
+Changes save automatically. They're also kept on the device until the server confirms them, so writing done while the connection is down survives a refresh or a closed tab and is sent when the connection returns. A banner says so while it's offline.
+
 The **History** screen shows a heatmap and trend charts. **Export** creates a PDF for a therapist with the same data as the app. A single day is one page. A range of days is a summary with charts, followed by a page per day. The PDF is generated in the browser on her device, so the server doesn't need to do anything for it.
 
 It works on iPhone, iPad and Mac. On iPhone or iPad, use Safari → Share → *Add to Home Screen* to open it like an app.
@@ -68,7 +70,7 @@ cd client && npm install && npm run dev          # Vite on :5173, proxies /api t
 
 ```sh
 cd server && npm test     # API tests (node:test), each file against a fresh temporary database
-cd client && npm test     # unit tests (Vitest): dates, reports, autosave, and real PDF generation
+cd client && npm test     # unit tests (Vitest): dates, reports, autosave, offline recovery, and real PDF generation
 ```
 
 ## Layout

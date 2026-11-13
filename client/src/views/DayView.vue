@@ -9,6 +9,7 @@ import DaySheet from '../components/DaySheet.vue';
 import StatsStrip from '../components/StatsStrip.vue';
 import { useStatsStore } from '../stores/stats.js';
 import AppIcon from '../components/AppIcon.vue';
+import { online } from '../utils/online.js';
 
 const props = defineProps({ date: { type: String, required: true } });
 
@@ -17,15 +18,26 @@ const catalog = useCatalogStore();
 const store = useDayStore();
 const stats = useStatsStore();
 
-const statusText = computed(
-  () =>
-    ({
+// Shown while changes can't reach the server because of the connection (not for a refused save).
+const connectionNotice = computed(() => {
+  if (!store.unsaved || (online.value && store.problem !== 'network')) return '';
+  const kept = store.keptOnDevice
+    ? 'Your changes are kept on this device and will be saved'
+    : 'Keep this page open: your changes will be saved';
+  return online.value ? `Can't reach the diary right now. ${kept} once it's back.` : `You're offline. ${kept} when you reconnect.`;
+});
+
+const statusText = computed(() => {
+  if (connectionNotice.value) return store.keptOnDevice ? 'Saved on this device' : 'Not saved yet';
+  return (
+    {
       pending: 'Saving…',
       saving: 'Saving…',
       saved: 'Saved',
       error: `Couldn't save: ${store.error}`,
-    })[store.status] ?? ''
-);
+    }[store.status] ?? ''
+  );
+});
 
 function go(date) {
   router.push({ name: 'day', params: { date } });
@@ -65,34 +77,42 @@ function onKey(e) {
   else if (e.key === 'ArrowRight' && props.date < currentDay.value) go(addDays(props.date, 1));
 }
 
-// Save straight away when the app is backgrounded or closed.
+// Save straight away when the app is backgrounded or closed. (Changes are already on the
+// device by then; this gets them to the server too, if it can.)
+const flushOnClose = () => store.flush({ keepalive: true });
 function onHide() {
-  if (document.visibilityState === 'hidden') store.flush();
+  if (document.visibilityState === 'hidden') flushOnClose();
 }
 
 onMounted(() => {
   window.addEventListener('keydown', onKey);
   document.addEventListener('visibilitychange', onHide);
-  window.addEventListener('pagehide', store.flush);
+  window.addEventListener('pagehide', flushOnClose);
 });
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKey);
   document.removeEventListener('visibilitychange', onHide);
-  window.removeEventListener('pagehide', store.flush);
+  window.removeEventListener('pagehide', flushOnClose);
 });
 onBeforeRouteLeave(() => store.flush());
 </script>
 
 <template>
   <div>
-    <header class="page-header day-header">
-      <DateNav :date="date" @change="go" />
-      <span class="spacer" />
-      <span class="status small" :class="store.status" aria-live="polite">{{ statusText }}</span>
-      <RouterLink class="btn" :to="{ name: 'export', query: { from: date, to: date } }" title="Share this day as a PDF">
-        <AppIcon name="share" :size="18" />
-        <span class="share-label">Share</span>
-      </RouterLink>
+    <header class="day-header">
+      <div class="day-row">
+        <DateNav :date="date" @change="go" />
+        <span class="spacer" />
+        <span class="status small" :class="connectionNotice ? 'offline' : store.status" aria-live="polite">{{ statusText }}</span>
+        <RouterLink class="btn" :to="{ name: 'export', query: { from: date, to: date } }" title="Share this day as a PDF">
+          <AppIcon name="share" :size="18" />
+          <span class="share-label">Share</span>
+        </RouterLink>
+      </div>
+      <p v-if="connectionNotice" class="connection small" role="status">
+        <AppIcon name="offline" :size="18" />
+        <span>{{ connectionNotice }}</span>
+      </p>
     </header>
 
     <StatsStrip />
@@ -124,7 +144,31 @@ onBeforeRouteLeave(() => store.flush());
   background: color-mix(in srgb, var(--bg) 92%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  flex-wrap: nowrap;
+}
+
+.day-row {
+  position: relative; /* anchors the status on small phones */
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* In the sticky header, so it stays in view while she writes further down the page. */
+.connection {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 10px 0 2px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--star) 45%, transparent);
+  background: color-mix(in srgb, var(--star) 14%, var(--surface));
+  color: var(--text);
+}
+
+.connection svg {
+  flex: none;
+  color: var(--star);
 }
 
 .status {
@@ -134,6 +178,11 @@ onBeforeRouteLeave(() => store.flush());
 
 .status.error {
   color: var(--danger);
+}
+
+.status.offline {
+  color: var(--text);
+  font-weight: 600;
 }
 
 .share-label {
@@ -146,6 +195,10 @@ onBeforeRouteLeave(() => store.flush());
     right: 72px;
     bottom: -4px;
     font-size: 0.72rem;
+  }
+  /* Too long to fit beside the date here, and the banner below says the same. */
+  .status.offline {
+    display: none;
   }
 }
 

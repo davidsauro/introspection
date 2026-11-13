@@ -3,11 +3,13 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth.js';
 import { useCatalogStore } from '../stores/catalog.js';
+import { useDayStore } from '../stores/day.js';
 import ItemList from '../components/ItemList.vue';
 import SkillList from '../components/SkillList.vue';
 
 const auth = useAuthStore();
 const catalog = useCatalogStore();
+const dayStore = useDayStore();
 const router = useRouter();
 
 onMounted(() => catalog.load());
@@ -32,6 +34,17 @@ async function changePassword() {
 }
 
 async function logout() {
+  // Logging out clears unsaved changes from this device, so try once more to save them first.
+  await dayStore.flush();
+  if (
+    dayStore.unsaved &&
+    !window.confirm(
+      "Some changes haven't reached the diary yet because it can't be reached right now. " +
+        'Logging out will delete them from this device. Log out anyway?'
+    )
+  ) {
+    return;
+  }
   await auth.logout();
   router.replace('/login');
 }

@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Writing survives a lost connection
+- **Kept on the device until saved:** every change is written to the browser's storage (`localStorage`) as it's made, and removed once the server confirms it. A refresh, a closed tab, or iOS unloading the app while offline no longer loses anything. Works in Safari (iPhone, iPad, Mac), Chrome, Edge, Firefox and Samsung Internet.
+- **Restored on reopening:** unsaved changes are put back on screen and sent, for whichever days they belong to. Each is first checked against the server. If the server already has it, it isn't sent again. If the day was changed on another device since, the other device's version wins, except for notes: her unsaved text is added below the other device's, under "— Recovered from this device —", so nothing written is lost.
+- **Retries by itself:** after 5, 15 and 30 seconds, then every minute, and as soon as the device comes back online or the app is reopened. Before, a failed save waited until she typed again.
+- **Clear warning:** a banner under the date says the connection is down and her changes are safe on the device (or, if the browser blocks storage, to keep the page open).
+- **Logout** tries to save first, asks before discarding anything that still can't be sent, and clears unsaved changes from the device.
+- **Long entries:** ordinary saves no longer use `keepalive`, which browsers cap at 64 KB per request. Only the save made as the page closes uses it.
+
+### Tests
+- 17 new client tests (87 in total) for saving to the device, restoring, checking against the server, merging, and retrying.
+
 ## 1.4.0 — 2026-10-19
 
 ### Starred skills replace the Recent list

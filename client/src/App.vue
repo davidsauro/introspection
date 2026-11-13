@@ -1,11 +1,30 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute } from 'vue-router';
 import AppIcon from './components/AppIcon.vue';
 import { currentDay } from './utils/dates.js';
+import { online } from './utils/online.js';
+import { useAuthStore } from './stores/auth.js';
+import { useDayStore } from './stores/day.js';
 
 const route = useRoute();
 const bare = computed(() => route.meta.bare);
+
+// Changes the server hasn't confirmed (left on this device by an earlier visit, or made while
+// offline) are sent as soon as they can get through, whichever screen she's on.
+const auth = useAuthStore();
+const dayStore = useDayStore();
+dayStore.restore();
+function sendUnsaved() {
+  if (auth.authenticated && dayStore.unsaved) dayStore.flush();
+}
+function onVisible() {
+  if (document.visibilityState === 'visible') sendUnsaved();
+}
+watch(online, (now) => now && sendUnsaved());
+watch(() => auth.authenticated, sendUnsaved);
+onMounted(() => document.addEventListener('visibilitychange', onVisible));
+onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisible));
 
 const links = computed(() => [
   { to: `/day/${currentDay.value}`, label: 'Day', icon: 'day', active: route.name === 'day' },
